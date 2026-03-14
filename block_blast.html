@@ -504,8 +504,9 @@
     ];
     
     function init() {
-      // Check for mobile mode
-      if (localStorage.getItem('mobileControlsEnabled') === 'true') {
+      // Automatic Mobile Detection
+      const isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+      if (isMobile) {
         const sliderContainer = document.getElementById('mobile-slider-container');
         const slider = document.getElementById('mobile-slider');
         sliderContainer.style.display = 'flex';
@@ -513,6 +514,10 @@
         // Push the cannon and upgrades up slightly to accommodate the slider
         cannonEl.style.bottom = '120px';
         upgradesPanel.style.bottom = '60px';
+        
+        // Ensure slider touches don't trigger game dragging
+        slider.addEventListener('touchstart', e => e.stopPropagation(), {passive: true});
+        slider.addEventListener('touchmove', e => e.stopPropagation(), {passive: true});
         
         slider.addEventListener('input', (e) => {
           const percent = e.target.value / 100;

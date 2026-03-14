@@ -669,8 +669,9 @@
     const ITEM_SIZE = 34;
     const PLAYER_SPEED = 9;
     const STAR_POINTS = 10;
-    const SPAWN_INTERVAL_INIT = 480;
     const SPAWN_INTERVAL_MIN = 260;
+
+    const isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
     const PLATFORM_COLORS = [
       { id: 'white', name: 'White', price: 0, class: 'player-white' },
@@ -1000,7 +1001,7 @@
       endText.textContent = won ? 'You won! 🎉' : 'Game Over';
       endMsg.classList.remove('hidden');
       
-      if (localStorage.getItem('mobileControlsEnabled') === 'true') {
+      if (isMobile) {
         document.getElementById('mobile-slider-container').style.display = 'none';
       }
     }
@@ -1026,7 +1027,7 @@
       scheduleSpawn();
       requestAnimationFrame(gameLoop);
 
-      if (localStorage.getItem('mobileControlsEnabled') === 'true') {
+      if (isMobile) {
         document.getElementById('mobile-slider-container').style.display = 'flex';
       }
     }
@@ -1055,8 +1056,16 @@
     totalStarsEl.textContent = getTotalStars();
 
     // Mobile Slider Input
-    if (localStorage.getItem('mobileControlsEnabled') === 'true') {
+    if (isMobile) {
       const slider = document.getElementById('mobile-slider');
+      
+      // Stop slider touches from interfering with other game logic if needed
+      slider.addEventListener('touchstart', e => e.stopPropagation(), {passive: true});
+      slider.addEventListener('touchmove', e => e.stopPropagation(), {passive: true});
+
+      // Move player higher to clear the slider
+      playerEl.style.bottom = '80px';
+      
       slider.addEventListener('input', (e) => {
         if (!gameRunning) return;
         const percent = e.target.value / 100;
