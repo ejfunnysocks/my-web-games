@@ -540,11 +540,50 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.4rem;
-      margin-right: 0.4rem;
       text-shadow: 0 0 6px rgba(255,255,255,0.7);
     }
-  </style>
+
+    /* Mobile Controls */
+    #mobile-slider-container {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 85%;
+      height: 44px;
+      background: rgba(10, 10, 30, 0.75);
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+      border: 1px solid rgba(255, 215, 0, 0.4);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);
+      z-index: 25;
+      display: none; /* Shown via JS */
+      pointer-events: auto;
+      backdrop-filter: blur(4px);
+    }
+    #mobile-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 5px;
+      outline: none;
+    }
+    #mobile-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, #ffd700, #ff8c00);
+      border: 2px solid #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+    }
+    </style>
 </head>
 <body>
   <h1>⭐ Star Catcher</h1>
@@ -555,6 +594,9 @@
   </div>
   <div id="game">
     <div id="active-powerups"></div>
+    <div id="mobile-slider-container">
+      <input type="range" id="mobile-slider" min="0" max="100" value="50">
+    </div>
     <div id="player" class="player-white"></div>
     <div id="main-menu">
       <button id="info-btn" class="info-btn" title="Powerups & how to play">?</button>
@@ -957,6 +999,10 @@
       setTotalStars(getTotalStars() + score);
       endText.textContent = won ? 'You won! 🎉' : 'Game Over';
       endMsg.classList.remove('hidden');
+      
+      if (localStorage.getItem('mobileControlsEnabled') === 'true') {
+        document.getElementById('mobile-slider-container').style.display = 'none';
+      }
     }
 
     function startGame() {
@@ -979,6 +1025,10 @@
       lastTime = performance.now();
       scheduleSpawn();
       requestAnimationFrame(gameLoop);
+
+      if (localStorage.getItem('mobileControlsEnabled') === 'true') {
+        document.getElementById('mobile-slider-container').style.display = 'flex';
+      }
     }
 
     function showMainMenu() {
@@ -1003,6 +1053,16 @@
     infoCloseBtn.addEventListener('click', () => { infoOverlay.classList.add('hidden'); });
     buildColorGrid();
     totalStarsEl.textContent = getTotalStars();
+
+    // Mobile Slider Input
+    if (localStorage.getItem('mobileControlsEnabled') === 'true') {
+      const slider = document.getElementById('mobile-slider');
+      slider.addEventListener('input', (e) => {
+        if (!gameRunning) return;
+        const percent = e.target.value / 100;
+        playerX = percent * (GAME_W - currentPlayerW);
+      });
+    }
   </script>
 </body>
 </html>
