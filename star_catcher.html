@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Star Catcher</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(1200px 800px at 20% 20%, rgba(140, 80, 255, 0.18), transparent 60%),
+        radial-gradient(900px 600px at 80% 35%, rgba(80, 200, 255, 0.14), transparent 55%),
+        radial-gradient(1100px 700px at 50% 85%, rgba(255, 160, 90, 0.10), transparent 60%),
+        linear-gradient(180deg, #070712 0%, #0e0e24 45%, #080815 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: #e0e0ff;
+      overflow: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(2px 2px at 15% 25%, rgba(255,255,255,0.85), transparent 60%),
+        radial-gradient(1px 1px at 35% 65%, rgba(255,255,255,0.65), transparent 60%),
+        radial-gradient(2px 2px at 55% 15%, rgba(255,255,255,0.75), transparent 60%),
+        radial-gradient(1px 1px at 75% 45%, rgba(255,255,255,0.55), transparent 60%),
+        radial-gradient(2px 2px at 85% 80%, rgba(255,255,255,0.70), transparent 60%);
+      opacity: 0.55;
+      filter: blur(0.2px);
+      animation: skyDrift 10s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+    @keyframes skyDrift {
+      0% { transform: translate3d(-6px, -4px, 0); opacity: 0.45; }
+      100% { transform: translate3d(6px, 5px, 0); opacity: 0.65; }
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 0 24px rgba(255, 215, 0, 0.6), 0 2px 4px rgba(0,0,0,0.3);
+      letter-spacing: 0.02em;
+    }
+    .score-board {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+      padding: 0.55rem 0.9rem;
+      border-radius: 14px;
+      background: rgba(10, 10, 30, 0.45);
+      border: 1px solid rgba(140, 120, 255, 0.25);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 0 24px rgba(120, 90, 255, 0.08), inset 0 0 22px rgba(255,255,255,0.05);
+      align-items: center;
+    }
+    .score-board span { color: #ffd700; font-weight: bold; }
+    #active-powerups {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 5;
+      pointer-events: none;
+    }
+    .powerup-status {
+      background: rgba(10, 10, 30, 0.7);
+      border: 1px solid;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      backdrop-filter: blur(4px);
+    }
+    #game {
+      width: 400px;
+      height: 500px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(110, 80, 190, 0.35) 0%, transparent 55%),
+                  linear-gradient(180deg, rgba(10, 10, 30, 0.95) 0%, rgba(18, 18, 45, 0.95) 55%, rgba(8, 8, 18, 0.98) 100%);
+      border: 1px solid rgba(160, 130, 255, 0.35);
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        inset 0 0 120px rgba(120, 90, 220, 0.10),
+        inset 0 0 40px rgba(255,255,255,0.03),
+        0 0 44px rgba(20, 20, 60, 0.65);
+    }
+    #game::before {
+      content: "";
+      position: absolute;
+      inset: -40px;
+      background:
+        radial-gradient(2px 2px at 12% 18%, rgba(255,255,255,0.70), transparent 55%),
+        radial-gradient(1px 1px at 22% 62%, rgba(255,255,255,0.55), transparent 55%),
+        radial-gradient(2px 2px at 38% 40%, rgba(255,255,255,0.60), transparent 55%),
+        radial-gradient(1px 1px at 52% 22%, rgba(255,255,255,0.45), transparent 55%),
+        radial-gradient(2px 2px at 66% 55%, rgba(255,255,255,0.62), transparent 55%),
+        radial-gradient(1px 1px at 78% 28%, rgba(255,255,255,0.48), transparent 55%),
+        radial-gradient(2px 2px at 86% 72%, rgba(255,255,255,0.58), transparent 55%),
+        radial-gradient(900px 420px at 60% 10%, rgba(160, 90, 255, 0.10), transparent 60%),
+        radial-gradient(780px 360px at 30% 85%, rgba(80, 210, 255, 0.08), transparent 60%);
+      opacity: 0.65;
+      animation: fieldDrift 12s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+    #game::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent 35%, rgba(0,0,0,0.15));
+      pointer-events: none;
+    }
+    @keyframes fieldDrift {
+      0% { transform: translate3d(-8px, -6px, 0); }
+      100% { transform: translate3d(8px, 7px, 0); }
+    }
+    #game.shake {
+      animation: shake 180ms ease-in-out;
+    }
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-3px); }
+      50% { transform: translateX(3px); }
+      75% { transform: translateX(-2px); }
+      100% { transform: translateX(0); }
+    }
+    #player {
+      position: absolute;
+      width: 64px;
+      height: 20px;
+      border-radius: 10px;
+      bottom: 24px;
+      left: 168px;
+      box-shadow: 0 0 16px rgba(255,255,255,0.25), 0 2px 8px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.35);
+      transition: left 0.04s ease-out;
+    }
+    #player::before {
+      content: "";
+      position: absolute;
+      inset: 1px 2px auto 2px;
+      height: 45%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+      opacity: 0.75;
+      filter: blur(0.3px);
+      /* Default when idle */
+      animation: paddleShineIdle 2s ease-in-out infinite;
+      pointer-events: none;
+      transition: all 0.2s;
+    }
+    #player.moving-left::before {
+      /* Trail points right, showing movement to the left */
+      background: linear-gradient(90deg, transparent, transparent, rgba(255,255,255,0.45), rgba(255,255,255,0.85));
+      animation: paddleShineLeft 0.5s linear infinite;
+    }
+    #player.moving-right::before {
+      /* Trail points left, showing movement to the right */
+      background: linear-gradient(90deg, rgba(255,255,255,0.85), rgba(255,255,255,0.45), transparent, transparent);
+      animation: paddleShineRight 0.5s linear infinite;
+    }
+    @keyframes paddleShineIdle {
+      0% { transform: translateX(-50%); opacity: 0.25; }
+      50% { opacity: 0.85; }
+      100% { transform: translateX(50%); opacity: 0.25; }
+    }
+    @keyframes paddleShineLeft {
+      0% { transform: translateX(-30%); opacity: 0.4; }
+      100% { transform: translateX(50%); opacity: 0.9; }
+    }
+    @keyframes paddleShineRight {
+      0% { transform: translateX(30%); opacity: 0.4; }
+      100% { transform: translateX(-50%); opacity: 0.9; }
+    }
+    /* Platform colors (unlockable) */
+    #player.player-white { background: linear-gradient(180deg, #f0f0f0 0%, #e0e0e0 50%, #c8c8c8 100%); }
+    #player.player-blue { background: linear-gradient(180deg, #6ab0ff 0%, #4a90d9 50%, #357abd 100%); }
+    #player.player-green { background: linear-gradient(180deg, #6dd96a 0%, #4ab847 50%, #2d8b2a 100%); }
+    #player.player-red { background: linear-gradient(180deg, #ff6b6b 0%, #e04848 50%, #b83030 100%); }
+    #player.player-gold { background: linear-gradient(180deg, #ffd966 0%, #e6b84d 50%, #c9941a 100%); box-shadow: 0 0 20px rgba(255, 215, 0, 0.5), 0 2px 8px rgba(0,0,0,0.3); }
+    #player.player-purple { background: linear-gradient(180deg, #b88cff 0%, #9060e8 50%, #6b3dd4 100%); box-shadow: 0 0 18px rgba(150, 100, 255, 0.45), 0 2px 8px rgba(0,0,0,0.3); }
+    #player.player-rainbow {
+      background: linear-gradient(90deg, #ff6b6b, #ffb86b, #ffd966, #6dd96a, #6ab0ff, #b88cff, #ff6b9d, #ff6b6b);
+      background-size: 400% 100%;
+      animation: rainbow-slide 2.5s linear infinite;
+      box-shadow: 0 0 22px rgba(255, 150, 255, 0.5), 0 2px 8px rgba(0,0,0,0.3);
+    }
+    @keyframes rainbow-slide { 0% { background-position: 0% 50%; } 100% { background-position: 400% 50%; } }
+    /* 5-pointed star shape */
+    .star {
+      position: absolute;
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, #fffacd 0%, #ffd700 40%, #ffec8b 100%);
+      clip-path: polygon(
+        50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%,
+        50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%
+      );
+      filter: drop-shadow(0 0 6px #ffd700) drop-shadow(0 0 12px rgba(255, 215, 0, 0.6));
+      animation: twinkle 0.55s ease-in-out infinite alternate, spinStar 2.6s linear infinite;
+      will-change: transform, opacity;
+    }
+    /* Powerups: neon symbols, no solid background */
+    .powerup {
+      position: absolute;
+      width: 34px;
+      height: 34px;
+      border-radius: 8px; /* Rounded corners instead of 50% */
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 24px; /* Scaled up to fit better */
+      line-height: 1;
+      letter-spacing: 0;
+      color: #ffffff;
+      text-shadow:
+        0 0 3px rgba(0,0,0,0.8),
+        0 0 6px rgba(255,255,255,0.6),
+        0 0 14px rgba(255,255,255,0.6);
+      animation: powerfloat 0.7s ease-in-out infinite alternate;
+      pointer-events: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 0 8px rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    .powerup.p-life   { color: #ff5fa5; text-shadow: 0 0 3px #ff5fa5, 0 0 9px #ff9ad0, 0 0 18px #ff5fa5; }
+    .powerup.p-rush   { color: #7ad4ff; text-shadow: 0 0 3px #7ad4ff, 0 0 9px #b6ecff, 0 0 18px #7ad4ff; }
+    .powerup.p-calm   { color: #7dffb5; text-shadow: 0 0 3px #7dffb5, 0 0 9px #b5ffe0, 0 0 18px #7dffb5; }
+    .powerup.p-shield { color: #d3baff; text-shadow: 0 0 3px #d3baff, 0 0 9px #f0e6ff, 0 0 18px #d3baff; }
+    .powerup.p-wide   { color: #ffd77a; text-shadow: 0 0 3px #ffd77a, 0 0 9px #ffe8b0, 0 0 18px #ffd77a; }
+    @keyframes powerfloat { to { transform: translateY(2px) scale(1.03); opacity: 0.95; } }
+    /* Bomb: black body + white fuse */
+    .bomb {
+      position: absolute;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .bomb-fuse {
+      width: 4px;
+      height: 8px;
+      background: linear-gradient(180deg, #fffaf0 0%, #e8e0d0 60%, #3a3a3a 100%);
+      border-radius: 1px;
+      flex-shrink: 0;
+      box-shadow: 0 0 4px rgba(255,230,180,0.7);
+      position: relative;
+    }
+    .bomb-fuse::after {
+      content: "";
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      margin-left: -3px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,240,200,0.95), rgba(255,180,80,0.7) 40%, transparent 65%);
+      filter: drop-shadow(0 0 8px rgba(255,200,120,0.8));
+      animation: spark 0.45s ease-in-out infinite alternate;
+      opacity: 0.9;
+    }
+    .bomb-body {
+      width: 24px;
+      height: 18px;
+      background: radial-gradient(ellipse 70% 60% at 50% 45%, #1a1a1a, #050505 90%);
+      border-radius: 50% 50% 48% 48%;
+      box-shadow: inset 1px 1px 2px rgba(255,255,255,0.06), 0 2px 4px rgba(0,0,0,0.6);
+      margin-top: -2px;
+    }
+    @keyframes twinkle { to { opacity: 0.95; transform: scale(1.10); } }
+    @keyframes spinStar { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes spark { to { transform: translateY(-1px) scale(1.15); opacity: 0.7; } }
+    /* Explosion on hit */
+    .explosion {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      left: 50%;
+      top: 50%;
+      margin-left: -25px;
+      margin-top: -25px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,220,140,0.95) 0%, rgba(255,140,40,0.75) 28%, rgba(220,70,0,0.30) 55%, transparent 70%);
+      pointer-events: none;
+      animation: explode 0.45s ease-out forwards;
+      filter: drop-shadow(0 0 10px rgba(255,120,40,0.55));
+    }
+    .explosion::before {
+      content: "";
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 210, 160, 0.55);
+      opacity: 0.8;
+      animation: ring 0.45s ease-out forwards;
+    }
+    .explosion::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background:
+        radial-gradient(2px 2px at 20% 30%, rgba(255,240,200,0.95), transparent 60%),
+        radial-gradient(2px 2px at 75% 25%, rgba(255,220,160,0.95), transparent 60%),
+        radial-gradient(2px 2px at 65% 75%, rgba(255,200,120,0.95), transparent 60%),
+        radial-gradient(2px 2px at 30% 70%, rgba(255,230,180,0.95), transparent 60%);
+      opacity: 0.9;
+      animation: sparks 0.45s ease-out forwards;
+    }
+    @keyframes explode {
+      0% { transform: scale(0); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.9; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    @keyframes ring {
+      0% { transform: scale(0.5); opacity: 0.8; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+    @keyframes sparks {
+      0% { transform: scale(0.7); opacity: 0.95; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+
+    /* Catch sparkle */
+    .sparkle {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.95), rgba(255,215,120,0.65) 35%, transparent 70%);
+      pointer-events: none;
+      filter: drop-shadow(0 0 10px rgba(255, 220, 140, 0.7));
+      animation: sparklePop 0.35s ease-out forwards;
+    }
+    @keyframes sparklePop {
+      0% { transform: scale(0.2); opacity: 0.9; }
+      60% { transform: scale(1.2); opacity: 0.85; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+    .message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      font-size: 1.5rem;
+      padding: 1.5rem;
+      background: rgba(0, 0, 30, 0.9);
+      border-radius: 12px;
+      border: 2px solid #3a3a6a;
+      z-index: 10;
+    }
+    .message button {
+      margin-top: 1rem;
+      padding: 0.6rem 1.5rem;
+      font-size: 1rem;
+      background: linear-gradient(180deg, #4a90d9, #357abd);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .message button:hover { background: linear-gradient(180deg, #5aa0e9, #4580cd); }
+    .message-buttons { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; justify-content: center; }
+    .hidden { display: none !important; }
+
+    /* Main menu */
+    #main-menu {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(8, 8, 24, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      z-index: 20;
+      border-radius: 16px;
+    }
+    .info-btn {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.6);
+      background: radial-gradient(circle at 30% 20%, #ffffff, #a0a0ff);
+      color: #151530;
+      font-weight: 900;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(150, 150, 255, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .info-btn:hover {
+      box-shadow: 0 0 14px rgba(190, 190, 255, 0.85);
+      transform: translateY(-1px);
+    }
+    #main-menu h2 { font-size: 1.5rem; margin-bottom: 1rem; color: #e0e0ff; }
+    #main-menu .menu-play {
+      padding: 0.7rem 2rem;
+      font-size: 1.2rem;
+      background: linear-gradient(180deg, #4a90d9, #357abd);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-bottom: 1.5rem;
+    }
+    #main-menu .menu-play:hover { background: linear-gradient(180deg, #5aa0e9, #4580cd); }
+    .color-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      justify-content: center;
+      max-width: 320px;
+    }
+    .color-option {
+      width: 44px;
+      height: 32px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.9);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .color-option:hover:not(.locked) { transform: scale(1.05); border-color: rgba(255,255,255,0.5); }
+    .color-option.selected { border-color: #ffd700; box-shadow: 0 0 12px rgba(255,215,0,0.5); }
+    .color-option.locked { cursor: not-allowed; opacity: 0.6; filter: grayscale(0.5); }
+    .color-option .price { font-size: 0.6rem; margin-top: 2px; }
+    .color-option.player-white { background: linear-gradient(180deg, #f0f0f0 0%, #c8c8c8 100%); }
+    .color-option.player-blue { background: linear-gradient(180deg, #6ab0ff 0%, #357abd 100%); }
+    .color-option.player-green { background: linear-gradient(180deg, #6dd96a 0%, #2d8b2a 100%); }
+    .color-option.player-red { background: linear-gradient(180deg, #ff6b6b 0%, #b83030 100%); }
+    .color-option.player-gold { background: linear-gradient(180deg, #ffd966 0%, #c9941a 100%); }
+    .color-option.player-purple { background: linear-gradient(180deg, #b88cff 0%, #6b3dd4 100%); }
+    .color-option.player-rainbow { background: linear-gradient(90deg, #ff6b6b, #ffd966, #6dd96a, #6ab0ff, #b88cff); }
+    #main-menu-btn { margin-top: 0.5rem; padding: 0.5rem 1rem; font-size: 0.9rem; background: rgba(80, 80, 120, 0.8); color: #e0e0ff; border: 1px solid #4a4a7a; border-radius: 8px; cursor: pointer; }
+    #main-menu-btn:hover { background: rgba(100, 100, 150, 0.9); }
+    #info-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 20% 0%, rgba(120, 100, 255, 0.26), transparent 55%),
+                  radial-gradient(circle at 80% 100%, rgba(80, 210, 255, 0.20), transparent 55%),
+                  rgba(3, 3, 12, 0.96);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      color: #f5f5ff;
+      backdrop-filter: blur(12px);
+    }
+    .info-overlay-inner {
+      width: min(520px, 90vw);
+      max-height: 80vh;
+      background: rgba(10, 10, 35, 0.95);
+      border-radius: 16px;
+      border: 1px solid rgba(150, 130, 255, 0.5);
+      box-shadow: 0 0 40px rgba(40, 40, 90, 0.9);
+      padding: 1.3rem 1.5rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .info-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.4rem;
+    }
+    .info-header h2 {
+      font-size: 1.3rem;
+      margin: 0;
+      text-shadow: 0 0 12px rgba(255, 215, 120, 0.6);
+    }
+    .info-close-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.7);
+      background: rgba(20,20,40,0.9);
+      color: #f5f5ff;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .info-close-btn:hover {
+      background: rgba(60,60,100,0.95);
+      box-shadow: 0 0 12px rgba(180, 160, 255, 0.7);
+    }
+    .info-content {
+      overflow-y: auto;
+      padding-right: 0.3rem;
+      font-size: 0.95rem;
+    }
+    .info-content section + section {
+      margin-top: 0.7rem;
+    }
+    .info-content h3 {
+      margin: 0 0 0.35rem;
+      font-size: 1.05rem;
+      color: #fdfdff;
+    }
+    .info-content ul {
+      list-style: none;
+      padding-left: 0;
+      margin: 0;
+      line-height: 1.45;
+    }
+    .info-content li {
+      margin-bottom: 0.25rem;
+    }
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.4rem;
+      margin-right: 0.4rem;
+      text-shadow: 0 0 6px rgba(255,255,255,0.7);
+    }
+  </style>
+</head>
+<body>
+  <h1>⭐ Star Catcher</h1>
+  <p style="margin-bottom: 0.5rem; opacity: 0.9;">Catch stars, avoid bombs! Use ← → or A/D</p>
+  <div class="score-board">
+    <div>Score: <span id="score">0</span></div>
+    <div>Lives: <span id="lives">3</span></div>
+  </div>
+  <div id="game">
+    <div id="active-powerups"></div>
+    <div id="player" class="player-white"></div>
+    <div id="main-menu">
+      <button id="info-btn" class="info-btn" title="Powerups & how to play">?</button>
+      <h2>⭐ Star Catcher</h2>
+      <button class="menu-play" id="menu-play-btn">Play</button>
+      <p style="font-size: 0.9rem; margin-bottom: 0.5rem; opacity: 0.9;">Platform color (earn stars to unlock)</p>
+      <div class="color-grid" id="color-grid"></div>
+      <p style="font-size: 0.75rem; margin-top: 0.75rem; opacity: 0.7;">Total stars: <span id="total-stars">0</span></p>
+    </div>
+    <div id="end-msg" class="message hidden">
+      <p id="end-text">Game Over</p>
+      <div class="message-buttons">
+        <button id="restart-btn">Play Again</button>
+        <button id="main-menu-btn">Main Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="info-overlay" class="hidden">
+    <div class="info-overlay-inner">
+      <div class="info-header">
+        <h2>Guide</h2>
+        <button id="info-close-btn" class="info-close-btn">×</button>
+      </div>
+      <div class="info-content">
+        <section>
+          <h3>Powerups</h3>
+          <ul>
+            <li><span class="info-icon">❤</span><strong>Life</strong> — gain an extra life.</li>
+            <li><span class="info-icon">✨</span><strong>Star Rush</strong> — more stars spawn for a while.</li>
+            <li><span class="info-icon">🧯</span><strong>Calm</strong> — fewer bombs spawn for a while.</li>
+            <li><span class="info-icon">🛡</span><strong>Shield</strong> — deflect up to 3 bombs.</li>
+            <li><span class="info-icon">↔</span><strong>Wide</strong> — paddle is wider for a while.</li>
+          </ul>
+        </section>
+        <section>
+          <h3>How to play</h3>
+          <ul>
+            <li>Use <strong>← →</strong> or <strong>A / D</strong> to move.</li>
+            <li>Catch <strong>stars</strong>, avoid <strong>bombs</strong>.</li>
+            <li>Powerups drop roughly every <strong>25 stars that fall</strong>.</li>
+            <li>Stars you earn add to <strong>Total stars</strong> so you can unlock new paddle colors.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const gameEl = document.getElementById('game');
+    const playerEl = document.getElementById('player');
+    const scoreEl = document.getElementById('score');
+    const livesEl = document.getElementById('lives');
+    const mainMenu = document.getElementById('main-menu');
+    const endMsg = document.getElementById('end-msg');
+    const endText = document.getElementById('end-text');
+    const restartBtn = document.getElementById('restart-btn');
+    const menuPlayBtn = document.getElementById('menu-play-btn');
+    const mainMenuBtn = document.getElementById('main-menu-btn');
+    const colorGrid = document.getElementById('color-grid');
+    const totalStarsEl = document.getElementById('total-stars');
+    const infoBtn = document.getElementById('info-btn');
+    const infoOverlay = document.getElementById('info-overlay');
+    const infoCloseBtn = document.getElementById('info-close-btn');
+
+    const GAME_W = 400;
+    const GAME_H = 500;
+    const PLAYER_W = 64;
+    const PLAYER_H = 20;
+    const ITEM_SIZE = 34;
+    const PLAYER_SPEED = 9;
+    const STAR_POINTS = 10;
+    const SPAWN_INTERVAL_INIT = 480;
+    const SPAWN_INTERVAL_MIN = 260;
+
+    const PLATFORM_COLORS = [
+      { id: 'white', name: 'White', price: 0, class: 'player-white' },
+      { id: 'blue', name: 'Blue', price: 100, class: 'player-blue' },
+      { id: 'green', name: 'Green', price: 250, class: 'player-green' },
+      { id: 'red', name: 'Red', price: 450, class: 'player-red' },
+      { id: 'gold', name: 'Gold', price: 700, class: 'player-gold' },
+      { id: 'purple', name: 'Purple', price: 1100, class: 'player-purple' },
+      { id: 'rainbow', name: 'Rainbow', price: 1800, class: 'player-rainbow' }
+    ];
+
+    let playerX = (GAME_W - PLAYER_W) / 2;
+    let score = 0;
+    let lives = 3;
+    let gameRunning = false;
+    let falling = [];
+    let spawnTimeoutId = null;
+    let keys = {};
+
+    function getTotalStars() { return parseInt(localStorage.getItem('starCatcherTotalStars') || '0', 10); }
+    function setTotalStars(n) { localStorage.setItem('starCatcherTotalStars', String(n)); totalStarsEl.textContent = n; }
+    function getSelectedColor() { return localStorage.getItem('starCatcherColor') || 'white'; }
+    function setSelectedColor(id) { localStorage.setItem('starCatcherColor', id); }
+
+    function buildColorGrid() {
+      const total = getTotalStars();
+      const selected = getSelectedColor();
+      colorGrid.innerHTML = '';
+      PLATFORM_COLORS.forEach(c => {
+        const unlocked = total >= c.price;
+        const btn = document.createElement('button');
+        btn.className = 'color-option ' + c.class + (c.id === selected ? ' selected' : '') + (unlocked ? '' : ' locked');
+        btn.dataset.colorId = c.id;
+        btn.title = c.price === 0 ? 'Default' : (unlocked ? c.name + ' (unlocked)' : c.name + ' — ' + c.price + ' stars');
+        if (unlocked) {
+          btn.addEventListener('click', () => { setSelectedColor(c.id); applyPlayerColor(); buildColorGrid(); });
+        } else {
+          btn.innerHTML = '<span class="price">' + c.price + '</span>';
+        }
+        colorGrid.appendChild(btn);
+      });
+      totalStarsEl.textContent = total;
+    }
+
+    function applyPlayerColor() {
+      const id = getSelectedColor();
+      const c = PLATFORM_COLORS.find(x => x.id === id);
+      playerEl.className = c ? c.class : 'player-white';
+    }
+
+    // Difficulty ramps with stars that have spawned/fallen (not caught)
+    function getSpawnDelay() {
+      return Math.max(SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_INIT - starsFallen * 1.3);
+    }
+
+    const POWERUPS = [
+      { id: 'life', glyph: '❤', css: 'p-life', name: 'Life' },       // +1 life
+      { id: 'rush', glyph: '✨', css: 'p-rush', name: 'Star Rush' },       // more stars
+      { id: 'calm', glyph: '🧯', css: 'p-calm', name: 'Calm' },       // fewer bombs
+      { id: 'shield', glyph: '🛡', css: 'p-shield', name: 'Shield' },   // ignore bomb damage
+      { id: 'wide', glyph: '↔', css: 'p-wide', name: 'Wide' }        // wider platform
+    ];
+
+    let starsFallen = 0;
+    let nextPowerupAt = 25 + (Math.floor(Math.random() * 9) - 4); // ~25 stars that spawn/fall
+    let effects = { rushUntil: 0, calmUntil: 0, shieldHitsLeft: 0, wideUntil: 0 }; 
+    let currentPlayerW = PLAYER_W;
+    let lastTime = 0;
+
+    function activeUntil(key) { return Date.now() < effects[key]; }
+    
+    function isAnyDurationPowerupActive() {
+      const now = Date.now();
+      return now < effects.rushUntil || now < effects.calmUntil || now < effects.wideUntil;
+    }
+
+    function applyPlayerWidth() {
+      currentPlayerW = activeUntil('wideUntil') ? 92 : PLAYER_W;
+      playerEl.style.width = currentPlayerW + 'px';
+    }
+
+    function triggerPowerup(id) {
+      if (id === 'life') {
+        lives = lives + 1;
+        livesEl.textContent = lives;
+        return;
+      }
+      
+      const now = Date.now();
+      const DURATION = 15000; // 15 seconds
+
+      if (id === 'shield') {
+        effects.shieldHitsLeft = 3; // Max 3 deflected bombs
+      } else if (id === 'rush') {
+        effects.rushUntil = now + DURATION;
+      } else if (id === 'calm') {
+        effects.calmUntil = now + DURATION;
+      } else if (id === 'wide') {
+        effects.wideUntil = now + DURATION;
+      }
+      
+      applyPlayerWidth();
+    }
+
+    function scheduleSpawn() {
+      if (!gameRunning) return;
+      spawnTimeoutId = setTimeout(() => {
+        const bombChanceBase = 0.26;
+        const bombChance = activeUntil('calmUntil') ? 0.12 : bombChanceBase;
+        const makeBomb = Math.random() < bombChance;
+        spawnItem(makeBomb);
+
+        // Star Rush: extra stars (screen stays readable)
+        if (activeUntil('rushUntil') && !makeBomb && Math.random() < 0.55) {
+          spawnItem(false);
+        }
+        scheduleSpawn();
+      }, getSpawnDelay());
+    }
+
+    function spawnItem(isBomb = false) {
+      if (!gameRunning) return;
+      const el = document.createElement('div');
+      el.className = isBomb ? 'bomb' : 'star';
+      el.dataset.kind = isBomb ? 'bomb' : 'star';
+      el.style.left = Math.random() * (GAME_W - ITEM_SIZE) + 'px';
+      el.style.top = '-35px';
+      if (isBomb) {
+        el.innerHTML = '<div class="bomb-fuse"></div><div class="bomb-body"></div>';
+      }
+      gameEl.appendChild(el);
+      falling.push({ el, y: -35, isBomb });
+
+      // Powerup pacing is based on how many stars spawn/fall (not caught)
+      if (!isBomb) {
+        starsFallen += 1;
+        // Only allow dropping powerups if no duration-based one is currently active
+        // (to prevent overlapping effects and stacked timers)
+        if (starsFallen >= nextPowerupAt) {
+          if (!isAnyDurationPowerupActive()) {
+            spawnPowerup();
+            nextPowerupAt = starsFallen + 25 + (Math.floor(Math.random() * 9) - 4);
+          } else {
+            // Delay the next check so it doesn't immediately drop once the effect ends
+            nextPowerupAt = starsFallen + 5;
+          }
+        }
+      }
+    }
+
+    function spawnPowerup() {
+      if (!gameRunning) return;
+      const type = POWERUPS[Math.floor(Math.random() * POWERUPS.length)];
+      const el = document.createElement('div');
+      
+      // Get the currently selected platform color class
+      const platformClass = playerEl.className;
+      
+      // Combine base class, specific powerup icon css, and the platform color class for background
+      el.className = 'powerup ' + type.css + ' ' + platformClass;
+      el.dataset.kind = 'powerup';
+      el.dataset.power = type.id;
+      el.textContent = type.glyph;
+      el.style.left = Math.random() * (GAME_W - ITEM_SIZE) + 'px';
+      el.style.top = '-35px';
+      gameEl.appendChild(el);
+      falling.push({ el, y: -35, isBomb: false });
+    }
+
+    function showExplosion(x, y) {
+      const ex = document.createElement('div');
+      ex.className = 'explosion';
+      ex.style.left = (x - 25) + 'px';
+      ex.style.top = (y - 25) + 'px';
+      gameEl.appendChild(ex);
+      setTimeout(() => ex.remove(), 480);
+    }
+
+    function showSparkle(x, y, color = null) {
+      const s = document.createElement('div');
+      s.className = 'sparkle';
+      s.style.left = (x - 7) + 'px';
+      s.style.top = (y - 7) + 'px';
+      if (color) {
+        s.style.filter = `drop-shadow(0 0 10px ${color})`;
+      }
+      gameEl.appendChild(s);
+      setTimeout(() => s.remove(), 420);
+    }
+
+    function shakeGame() {
+      gameEl.classList.remove('shake');
+      // Force reflow so the animation re-triggers reliably
+      void gameEl.offsetWidth;
+      gameEl.classList.add('shake');
+      setTimeout(() => gameEl.classList.remove('shake'), 220);
+    }
+
+    function updatePowerupUI() {
+      const container = document.getElementById('active-powerups');
+      container.innerHTML = '';
+      const now = Date.now();
+
+      const activeList = [];
+      if (effects.shieldHitsLeft > 0) {
+        activeList.push({ id: 'shield', name: 'Shield', text: effects.shieldHitsLeft + ' left', color: '#d3baff', glyph: '🛡' });
+      }
+      if (now < effects.rushUntil) {
+        activeList.push({ id: 'rush', name: 'Star Rush', text: Math.ceil((effects.rushUntil - now) / 1000) + 's', color: '#7ad4ff', glyph: '✨' });
+      }
+      if (now < effects.calmUntil) {
+        activeList.push({ id: 'calm', name: 'Calm', text: Math.ceil((effects.calmUntil - now) / 1000) + 's', color: '#7dffb5', glyph: '🧯' });
+      }
+      if (now < effects.wideUntil) {
+        activeList.push({ id: 'wide', name: 'Wide', text: Math.ceil((effects.wideUntil - now) / 1000) + 's', color: '#ffd77a', glyph: '↔' });
+      }
+
+      activeList.forEach(p => {
+        const el = document.createElement('div');
+        el.className = 'powerup-status';
+        el.style.borderColor = p.color;
+        el.style.color = p.color;
+        
+        const iconSpan = document.createElement('span');
+        iconSpan.textContent = p.glyph;
+        iconSpan.style.textShadow = `0 0 6px ${p.color}`;
+        
+        const textSpan = document.createElement('span');
+        textSpan.textContent = `${p.name} - ${p.text}`;
+        
+        el.appendChild(iconSpan);
+        el.appendChild(textSpan);
+        container.appendChild(el);
+      });
+    }
+
+    function gameLoop(timestamp) {
+      if (!gameRunning) return;
+      
+      const deltaTime = lastTime ? timestamp - lastTime : 0;
+      lastTime = timestamp;
+      
+      updatePowerupUI();
+      const fallSpeed = 2 + starsFallen / 70;
+      for (let i = falling.length - 1; i >= 0; i--) {
+        const obj = falling[i];
+        obj.y += fallSpeed;
+        obj.el.style.top = obj.y + 'px';
+
+        if (obj.y > GAME_H) {
+          obj.el.remove();
+          falling.splice(i, 1);
+          continue;
+        }
+
+        const objLeft = parseFloat(obj.el.style.left);
+        const hit = obj.y + ITEM_SIZE >= GAME_H - 24 - PLAYER_H && obj.y <= GAME_H - 24 &&
+          objLeft + ITEM_SIZE > playerX && objLeft < playerX + currentPlayerW;
+
+        if (hit) {
+          const hitCenterX = objLeft + ITEM_SIZE / 2;
+          const hitCenterY = obj.y + ITEM_SIZE / 2;
+          const kind = obj.el.dataset.kind || (obj.isBomb ? 'bomb' : 'star');
+          if (kind === 'bomb') {
+            showExplosion(hitCenterX, hitCenterY);
+            shakeGame();
+            obj.el.remove();
+            falling.splice(i, 1);
+            if (effects.shieldHitsLeft > 0) {
+              effects.shieldHitsLeft--;
+            } else {
+              lives--;
+              livesEl.textContent = lives;
+              if (lives <= 0) endGame(false);
+            }
+          } else if (kind === 'powerup') {
+            obj.el.remove();
+            falling.splice(i, 1);
+            triggerPowerup(obj.el.dataset.power);
+            showSparkle(hitCenterX, hitCenterY, '#d3baff');
+          } else {
+            obj.el.remove();
+            falling.splice(i, 1);
+            score += STAR_POINTS;
+            scoreEl.textContent = score;
+            showSparkle(hitCenterX, hitCenterY, '#ffd77a');
+          }
+        }
+      }
+
+      let movingLeft = false;
+      let movingRight = false;
+      if (keys['ArrowLeft'] || keys['a']) {
+        playerX = Math.max(0, playerX - PLAYER_SPEED);
+        movingLeft = true;
+      }
+      if (keys['ArrowRight'] || keys['d']) {
+        playerX = Math.min(GAME_W - currentPlayerW, playerX + PLAYER_SPEED);
+        movingRight = true;
+      }
+      
+      // Handle player directional trail class
+      if (movingLeft && !movingRight) {
+        playerEl.classList.add('moving-left');
+        playerEl.classList.remove('moving-right');
+      } else if (movingRight && !movingLeft) {
+        playerEl.classList.add('moving-right');
+        playerEl.classList.remove('moving-left');
+      } else {
+        playerEl.classList.remove('moving-left', 'moving-right');
+      }
+
+      playerEl.style.left = playerX + 'px';
+      applyPlayerWidth();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function endGame(won) {
+      gameRunning = false;
+      document.getElementById('active-powerups').innerHTML = '';
+      if (spawnTimeoutId) clearTimeout(spawnTimeoutId);
+      spawnTimeoutId = null;
+      falling.forEach(o => o.el.remove());
+      falling = [];
+      setTotalStars(getTotalStars() + score);
+      endText.textContent = won ? 'You won! 🎉' : 'Game Over';
+      endMsg.classList.remove('hidden');
+    }
+
+    function startGame() {
+      mainMenu.classList.add('hidden');
+      endMsg.classList.add('hidden');
+      applyPlayerColor();
+      playerEl.style.width = PLAYER_W + 'px';
+      score = 0;
+      lives = 3;
+      scoreEl.textContent = score;
+      livesEl.textContent = lives;
+      document.getElementById('active-powerups').innerHTML = '';
+      starsFallen = 0;
+      nextPowerupAt = 25 + (Math.floor(Math.random() * 9) - 4);
+      effects = { rushUntil: 0, calmUntil: 0, shieldHitsLeft: 0, wideUntil: 0 };
+      currentPlayerW = PLAYER_W;
+      playerX = (GAME_W - PLAYER_W) / 2;
+      playerEl.style.left = playerX + 'px';
+      gameRunning = true;
+      lastTime = performance.now();
+      scheduleSpawn();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function showMainMenu() {
+      mainMenu.classList.remove('hidden');
+      endMsg.classList.add('hidden');
+      buildColorGrid();
+    }
+
+    document.addEventListener('keydown', e => { keys[e.key] = true; if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') e.preventDefault(); });
+    document.addEventListener('keyup', e => { keys[e.key] = false; });
+    menuPlayBtn.addEventListener('click', startGame);
+    restartBtn.addEventListener('click', startGame);
+    mainMenuBtn.addEventListener('click', showMainMenu);
+    infoBtn.addEventListener('click', () => {
+      const isHidden = infoOverlay.classList.contains('hidden');
+      if (isHidden) {
+        infoOverlay.classList.remove('hidden');
+      } else {
+        infoOverlay.classList.add('hidden');
+      }
+    });
+    infoCloseBtn.addEventListener('click', () => { infoOverlay.classList.add('hidden'); });
+    buildColorGrid();
+    totalStarsEl.textContent = getTotalStars();
+  </script>
+</body>
+</html>
