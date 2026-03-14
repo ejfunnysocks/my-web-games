@@ -456,7 +456,37 @@
     }
     .shop-section h3 { width: 100%; text-align: center; margin-bottom: 10px; color: #4a90e2; }
 
-    #shop-screen h2 { color: #4a90e2; }
+    #shop-screen h2 { color: #4a90e2; margin-top: 40px; }
+    
+    #open-shop-btn {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 80px !important;
+      height: 80px;
+      min-width: 0 !important;
+      border-radius: 50% !important;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px !important;
+      padding: 5px !important;
+      background: #eab308;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      border: 2px solid #fff;
+    }
+    
+    #close-shop-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      min-width: 0 !important;
+      padding: 8px 15px !important;
+      background: #333;
+      border: 1px solid #555;
+    }
     </style>
 </head>
 <body>
@@ -503,15 +533,18 @@
       </div>
       
       <button class="screen-btn" id="play-btn" style="margin-top: 20px; font-size: 24px;">Play</button>
-      <button class="screen-btn" id="open-shop-btn" style="background: #eab308;">Visit Shop</button>
+      <button class="screen-btn" id="open-shop-btn">
+        <span style="font-size: 24px;">🛒</span>
+        <span>SHOP</span>
+      </button>
     </div>
 
     <div id="shop-screen" class="screen-overlay" style="display: none;">
+      <button class="screen-btn" id="close-shop-btn">← Back</button>
       <h2>The Shop</h2>
       <div id="shop-content" style="width: 100%; display: flex; flex-direction: column; align-items: center; overflow-y: auto; max-height: 70vh;">
         <!-- Generated via JS -->
       </div>
-      <button class="screen-btn" id="close-shop-btn">Back to Menu</button>
     </div>
     
     <div id="game-over" class="screen-overlay" style="display: none;">
