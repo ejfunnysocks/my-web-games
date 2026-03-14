@@ -344,7 +344,6 @@
       box-shadow: 0 0 15px rgba(74, 144, 226, 0.3);
       z-index: 25;
       display: none; /* Shown via JS */
-      pointer-events: auto;
     }
     #mobile-slider {
       -webkit-appearance: none;
@@ -366,10 +365,108 @@
       cursor: pointer;
       box-shadow: 0 0 10px rgba(74, 144, 226, 0.8);
     }
+
+    /* Backgrounds */
+    #game-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+      background: linear-gradient(to bottom, #1a2a44 0%, #3a5a84 100%);
+    }
+
+    /* Snowy Mountains Background */
+    .bg-mountains .mountain {
+      position: absolute;
+      bottom: 60px;
+      width: 0;
+      height: 0;
+      border-left: 150px solid transparent;
+      border-right: 150px solid transparent;
+      border-bottom: 200px solid #4a5a74;
+    }
+    .bg-mountains .mountain-1 { left: -50px; bottom: 60px; opacity: 0.8; }
+    .bg-mountains .mountain-2 { right: -50px; bottom: 80px; transform: scale(1.2); opacity: 0.6; }
+    .bg-mountains .mountain-3 { left: 150px; bottom: 50px; transform: scale(0.8); opacity: 0.9; }
+
+    .bg-mountains .peak {
+      position: absolute;
+      top: 0;
+      left: -150px;
+      width: 0;
+      height: 0;
+      border-left: 150px solid transparent;
+      border-right: 150px solid transparent;
+      border-bottom: 60px solid #fff;
+    }
+
+    /* Void Space Background */
+    .bg-space {
+      background: radial-gradient(circle at center, #111 0%, #000 100%) !important;
+    }
+    .bg-space::before {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      background-image: radial-gradient(#fff 1px, transparent 1px);
+      background-size: 50px 50px;
+      opacity: 0.3;
+      animation: drift 60s linear infinite;
+    }
+    @keyframes drift {
+      from { transform: translate(0, 0); }
+      to { transform: translate(-50px, -50px); }
+    }
+
+    /* Magma Pit Background */
+    .bg-lava {
+      background: #1a0505 !important;
+    }
+    .bg-lava::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 150px;
+      background: linear-gradient(to top, #ff4500 0%, transparent 100%);
+      opacity: 0.4;
+      filter: blur(20px);
+      animation: pulse-glow 3s ease-in-out infinite alternate;
+    }
+    @keyframes pulse-glow {
+      from { opacity: 0.3; }
+      to { opacity: 0.6; }
+    }
+
+    .shop-section {
+      width: 90%;
+      margin: 10px 0;
+      background: rgba(0,0,0,0.5);
+      padding: 15px;
+      border-radius: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+    .shop-section h3 { width: 100%; text-align: center; margin-bottom: 10px; color: #4a90e2; }
+
+    #shop-screen h2 { color: #4a90e2; }
     </style>
 </head>
 <body>
   <div id="game-container">
+    <div id="game-background" class="bg-mountains">
+      <div class="mountain mountain-1"><div class="peak"></div></div>
+      <div class="mountain mountain-2"><div class="peak"></div></div>
+      <div class="mountain mountain-3"><div class="peak"></div></div>
+    </div>
+    
     <div id="ui-layer">
       <div class="stat-box">Coins: <span id="coins">0</span></div>
     </div>
@@ -405,11 +502,16 @@
         </button>
       </div>
       
-      <div id="skins-shop" style="display: flex; gap: 10px; margin: 20px 0; background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; flex-wrap: wrap; justify-content: center; width: 90%;">
+      <button class="screen-btn" id="play-btn" style="margin-top: 20px; font-size: 24px;">Play</button>
+      <button class="screen-btn" id="open-shop-btn" style="background: #eab308;">Visit Shop</button>
+    </div>
+
+    <div id="shop-screen" class="screen-overlay" style="display: none;">
+      <h2>The Shop</h2>
+      <div id="shop-content" style="width: 100%; display: flex; flex-direction: column; align-items: center; overflow-y: auto; max-height: 70vh;">
         <!-- Generated via JS -->
       </div>
-
-      <button class="screen-btn" id="play-btn" style="margin-top: 20px; font-size: 24px;">Play</button>
+      <button class="screen-btn" id="close-shop-btn">Back to Menu</button>
     </div>
     
     <div id="game-over" class="screen-overlay" style="display: none;">
@@ -432,7 +534,10 @@
     const mainMenuScreen = document.getElementById('main-menu');
     const gameOverScreen = document.getElementById('game-over');
     const victoryScreen = document.getElementById('victory-screen');
+    const shopScreen = document.getElementById('shop-screen');
+    const shopContent = document.getElementById('shop-content');
     const upgradesPanel = document.getElementById('upgrades-panel');
+    const gameBg = document.getElementById('game-background');
     const levelProgressContainer = document.getElementById('level-progress-container');
     const levelProgressFill = document.getElementById('level-progress-fill');
     const levelText = document.getElementById('level-text');
@@ -479,6 +584,8 @@
       // Cosmetics
       unlockedSkins: ['default'],
       equippedSkin: 'default',
+      unlockedBackgrounds: ['bg-mountains'],
+      equippedBackground: 'bg-mountains',
       
       // Input
       keys: {},
@@ -504,6 +611,12 @@
       { id: 'skin-crimson', name: 'Crimson', cost: 150 },
       { id: 'skin-gold', name: 'Golden Flex', cost: 500 },
       { id: 'skin-neon', name: 'Neon Striker', cost: 1200 }
+    ];
+
+    const BACKGROUNDS = [
+      { id: 'bg-mountains', name: 'Snowy Mountains', cost: 0, class: 'bg-mountains' },
+      { id: 'bg-space', name: 'Void Space', cost: 300, class: 'bg-space' }, // Dark plain background with spots
+      { id: 'bg-lava', name: 'Magma Pit', cost: 800, class: 'bg-lava' } // Orange glow at bottom
     ];
     
     function init() {
@@ -617,6 +730,9 @@
       
       // Spawn timer continuous loop (will check conditions inside)
       setInterval(spawnLevelBall, 1500);
+
+      document.getElementById('open-shop-btn').addEventListener('click', showShop);
+      document.getElementById('close-shop-btn').addEventListener('click', showMenu);
     }
     
     function showMenu() {
@@ -624,24 +740,33 @@
       mainMenuScreen.style.display = 'flex';
       gameOverScreen.style.display = 'none';
       victoryScreen.style.display = 'none';
+      shopScreen.style.display = 'none';
       levelProgressContainer.style.display = 'none';
       loadProgress();
-      renderSkinsShop();
       if (state.level > 1) {
         document.getElementById('play-btn').textContent = `Resume Level ${state.level}`;
       } else {
         document.getElementById('play-btn').textContent = `Play`;
       }
     }
+
+    function showShop() {
+      mainMenuScreen.style.display = 'none';
+      shopScreen.style.display = 'flex';
+      renderShop();
+    }
     
-    function renderSkinsShop() {
-      const container = document.getElementById('skins-shop');
-      container.innerHTML = '<h3>Shop</h3><div style="flex-basis: 100%; height: 5px;"></div>'; // Line break
+    function renderShop() {
+      shopContent.innerHTML = '';
+
+      // Skins Section
+      const skinsSec = document.createElement('div');
+      skinsSec.className = 'shop-section';
+      skinsSec.innerHTML = '<h3>Cannon Skins</h3>';
       
       SKINS.forEach(skin => {
         const isUnlocked = state.unlockedSkins.includes(skin.id);
         const isEquipped = state.equippedSkin === skin.id;
-        
         const btn = document.createElement('button');
         btn.className = 'upgrade-btn';
         btn.style.width = '110px';
@@ -655,7 +780,7 @@
                 state.equippedSkin = skin.id;
                 applySkin();
                 saveProgress();
-                renderSkinsShop();
+                renderShop();
             };
         } else {
             btn.innerHTML = `<div>${skin.name}</div><span class="upgrade-cost">${skin.cost}</span>`;
@@ -668,17 +793,73 @@
                     updateUI();
                     saveProgress();
                     applySkin();
-                    renderSkinsShop();
+                    renderShop();
                 }
             };
         }
-        
-        container.appendChild(btn);
+        skinsSec.appendChild(btn);
       });
+      shopContent.appendChild(skinsSec);
+
+      // Backgrounds Section
+      const bgSec = document.createElement('div');
+      bgSec.className = 'shop-section';
+      bgSec.innerHTML = '<h3>Backgrounds</h3>';
+
+      BACKGROUNDS.forEach(bg => {
+        const isUnlocked = state.unlockedBackgrounds.includes(bg.id);
+        const isEquipped = state.equippedBackground === bg.id;
+        const btn = document.createElement('button');
+        btn.className = 'upgrade-btn';
+        btn.style.width = '110px';
+
+        if (isEquipped) {
+          btn.innerHTML = `<div>${bg.name}</div><span style="color:#0f0; margin-top:4px; display:block;">Equipped</span>`;
+          btn.disabled = true;
+        } else if (isUnlocked) {
+          btn.innerHTML = `<div>${bg.name}</div><span style="color:#fff; margin-top:4px; display:block;">Equip</span>`;
+          btn.onclick = () => {
+            state.equippedBackground = bg.id;
+            applyBackground();
+            saveProgress();
+            renderShop();
+          };
+        } else {
+          btn.innerHTML = `<div>${bg.name}</div><span class="upgrade-cost">${bg.cost}</span>`;
+          btn.disabled = state.coins < bg.cost;
+          btn.onclick = () => {
+            if (state.coins >= bg.cost) {
+              state.coins -= bg.cost;
+              state.unlockedBackgrounds.push(bg.id);
+              state.equippedBackground = bg.id;
+              updateUI();
+              saveProgress();
+              applyBackground();
+              renderShop();
+            }
+          };
+        }
+        bgSec.appendChild(btn);
+      });
+      shopContent.appendChild(bgSec);
     }
     
     function applySkin() {
       cannonEl.className = state.equippedSkin === 'default' ? '' : state.equippedSkin;
+    }
+
+    function applyBackground() {
+      gameBg.className = state.equippedBackground;
+      // Handle special backgrounds
+      if (state.equippedBackground === 'bg-mountains') {
+        gameBg.innerHTML = `
+          <div class="mountain mountain-1"><div class="peak"></div></div>
+          <div class="mountain mountain-2"><div class="peak"></div></div>
+          <div class="mountain mountain-3"><div class="peak"></div></div>
+        `;
+      } else {
+        gameBg.innerHTML = ''; // Keep simple for now
+      }
     }
     
     function startLevel() {
@@ -751,7 +932,8 @@
         damage: state.damage, damageLvl: state.damageLvl, damageCost: state.damageCost,
         fireRate: state.fireRate, fireRateLvl: state.fireRateLvl, fireRateCost: state.fireRateCost,
         critChance: state.critChance, critLvl: state.critLvl, critCost: state.critCost,
-        unlockedSkins: state.unlockedSkins, equippedSkin: state.equippedSkin
+        unlockedSkins: state.unlockedSkins, equippedSkin: state.equippedSkin,
+        unlockedBackgrounds: state.unlockedBackgrounds, equippedBackground: state.equippedBackground
       };
       localStorage.setItem('cannonBlastSave', JSON.stringify(saveData));
     }
@@ -778,8 +960,11 @@
           
           if (!state.unlockedSkins) state.unlockedSkins = ['default'];
           if (!state.equippedSkin) state.equippedSkin = 'default';
+          if (!state.unlockedBackgrounds) state.unlockedBackgrounds = ['bg-mountains'];
+          if (!state.equippedBackground) state.equippedBackground = 'bg-mountains';
           
           applySkin();
+          applyBackground();
           updateUI();
         } catch(e) { console.error('Save data corrupted', e); }
       }
