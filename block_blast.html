@@ -1059,9 +1059,9 @@
         document.getElementById('upg-firerate').disabled = state.coins < state.fireRateCost;
       }
       
-      // Update skins shop buttons live if menu is open
-      if (!state.running && mainMenuScreen.style.display !== 'none') {
-        renderSkinsShop();
+      // Update shop buttons live if shop is open
+      if (shopScreen.style.display !== 'none') {
+        renderShop();
       }
     }
     
