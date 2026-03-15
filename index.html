@@ -141,6 +141,15 @@
         input:checked + .slider { background-color: var(--primary); }
         input:checked + .slider:before { transform: translateX(24px); }
 
+        .switch.disabled { opacity: 0.5; pointer-events: none; }
+        .mobile-warning {
+            display: none;
+            font-size: 0.75rem;
+            color: #ef4444;
+            margin-top: 0.5rem;
+            font-weight: 500;
+        }
+
         /* Game Cards */
         .games-grid {
             display: grid;
@@ -346,13 +355,16 @@
         <h1>Arcade Hub</h1>
         <p class="subtitle">Experience high-speed action and classic fun with our curated collection of web-based arcade games.</p>
 
-        <div class="controls">
-            <span class="toggle-label">Desktop</span>
-            <label class="switch">
-                <input type="checkbox" id="mobile-toggle">
-                <span class="slider"></span>
-            </label>
-            <span class="toggle-label">Mobile Mode</span>
+        <div class="controls-wrapper">
+            <div class="controls" id="controls-panel">
+                <span class="toggle-label">Desktop</span>
+                <label class="switch" id="toggle-switch">
+                    <input type="checkbox" id="mobile-toggle">
+                    <span class="slider"></span>
+                </label>
+                <span class="toggle-label">Mobile Mode</span>
+            </div>
+            <div id="mobile-only-msg" class="mobile-warning">Available on mobile devices only</div>
         </div>
 
         <div class="games-grid">
@@ -405,20 +417,43 @@
 
     <script>
         const mobileToggle = document.getElementById('mobile-toggle');
+        const toggleSwitch = document.getElementById('toggle-switch');
+        const mobileOnlyMsg = document.getElementById('mobile-only-msg');
+
+        // Mobile detection
+        function isMobileDevice() {
+            return (('ontouchstart' in window) ||
+                (navigator.maxTouchPoints > 0) ||
+                (navigator.msMaxTouchPoints > 0)) && 
+                window.matchMedia("(max-width: 1024px)").matches;
+        }
+
+        const isMobile = isMobileDevice();
+        if (!isMobile) {
+            mobileToggle.disabled = true;
+            toggleSwitch.classList.add('disabled');
+            mobileOnlyMsg.style.display = 'block';
+            localStorage.setItem('globalMobileMode', 'false');
+            mobileToggle.checked = false;
+        }
         
-        // Initial load
-        const storedMode = localStorage.getItem('globalMobileMode');
-        if (storedMode === 'true') {
-            mobileToggle.checked = true;
+        // Initial load (only if mobile or previously set)
+        if (isMobile) {
+            const storedMode = localStorage.getItem('globalMobileMode');
+            if (storedMode === 'true') {
+                mobileToggle.checked = true;
+            }
         }
 
         mobileToggle.addEventListener('change', () => {
+            if (!isMobile) return;
             console.log('Mobile Mode changed:', mobileToggle.checked);
             localStorage.setItem('globalMobileMode', mobileToggle.checked);
         });
 
         // Ensure state is saved even on simple clicks if change doesn't fire as expected
         mobileToggle.addEventListener('click', () => {
+            if (!isMobile) return;
             localStorage.setItem('globalMobileMode', mobileToggle.checked);
         });
 

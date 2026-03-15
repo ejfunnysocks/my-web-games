@@ -555,7 +555,7 @@
         </button>
         <button class="upgrade-btn" id="upg-firerate">
           <div>Fire Rate (Lvl <span id="lvl-firerate">1</span>)</div>
-          <div class="stat-info">Current: <span id="val-firerate">400</span>ms</div>
+          <div class="stat-info">Current: <span id="val-firerate">2.5</span>/sec</div>
           <span class="upgrade-cost" id="cost-firerate">10</span>
         </button>
         <button class="upgrade-btn" id="upg-crit">
@@ -1038,7 +1038,7 @@
           document.getElementById('cost-crit').textContent = state.critCost;
           
           document.getElementById('val-damage').textContent = state.damage;
-          document.getElementById('val-firerate').textContent = Math.round(state.fireRate);
+          document.getElementById('val-firerate').textContent = (1000 / state.fireRate).toFixed(1);
           document.getElementById('val-crit').textContent = state.critChance;
           
           if (!state.unlockedSkins) state.unlockedSkins = ['default'];
@@ -1071,7 +1071,7 @@
     function upgradeFireRate() {
       if (state.coins >= state.fireRateCost && state.fireRate > 50) {
         state.coins -= state.fireRateCost;
-        state.fireRate = Math.max(50, state.fireRate * 0.85);
+        state.fireRate = Math.max(50, state.fireRate * 0.92);
         state.fireRateLvl += 1;
         state.fireRateCost = Math.floor(state.fireRateCost * 1.5);
         document.getElementById('lvl-firerate').textContent = state.fireRateLvl;
@@ -1083,7 +1083,7 @@
         } else {
             document.getElementById('cost-firerate').textContent = state.fireRateCost;
         }
-        document.getElementById('val-firerate').textContent = Math.round(state.fireRate);
+        document.getElementById('val-firerate').textContent = (1000 / state.fireRate).toFixed(1);
         updateUI();
         saveProgress();
       }
