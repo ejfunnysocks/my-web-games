@@ -549,18 +549,15 @@
       
       <div id="upgrades-panel">
         <button class="upgrade-btn" id="upg-damage">
-          <div>Damage (Lvl <span id="lvl-damage">1</span>)</div>
-          <div class="stat-info">Current: <span id="val-damage">1</span> DMG</div>
+          <div>Damage: <span id="val-damage">1</span> DMG</div>
           <span class="upgrade-cost" id="cost-damage">10</span>
         </button>
         <button class="upgrade-btn" id="upg-firerate">
-          <div>Fire Rate (Lvl <span id="lvl-firerate">1</span>)</div>
-          <div class="stat-info">Current: <span id="val-firerate">2.5</span>/sec</div>
+          <div>Fire Rate: <span id="val-firerate">2.5</span>/sec</div>
           <span class="upgrade-cost" id="cost-firerate">10</span>
         </button>
         <button class="upgrade-btn" id="upg-crit">
-          <div>Crit Chance (Lvl <span id="lvl-crit">1</span>)</div>
-          <div class="stat-info">Current: <span id="val-crit">2</span>%</div>
+          <div>Crit Chance: <span id="val-crit">2</span>%</div>
           <span class="upgrade-cost" id="cost-crit">15</span>
         </button>
       </div>
@@ -1024,17 +1021,14 @@
           const data = JSON.parse(saved);
           Object.assign(state, data);
           
-          document.getElementById('lvl-damage').textContent = state.damageLvl;
           document.getElementById('cost-damage').textContent = state.damageCost;
           
-          document.getElementById('lvl-firerate').textContent = state.fireRateLvl;
           if (state.fireRate <= 50) {
             document.getElementById('cost-firerate').textContent = 'MAX';
           } else {
             document.getElementById('cost-firerate').textContent = state.fireRateCost;
           }
           
-          document.getElementById('lvl-crit').textContent = state.critLvl;
           document.getElementById('cost-crit').textContent = state.critCost;
           
           document.getElementById('val-damage').textContent = state.damage;
@@ -1060,7 +1054,6 @@
         state.damage += 1;
         state.damageLvl += 1;
         state.damageCost = Math.floor(state.damageCost * 1.5);
-        document.getElementById('lvl-damage').textContent = state.damageLvl;
         document.getElementById('cost-damage').textContent = state.damageCost;
         document.getElementById('val-damage').textContent = state.damage;
         updateUI();
@@ -1074,8 +1067,6 @@
         state.fireRate = Math.max(50, state.fireRate * 0.92);
         state.fireRateLvl += 1;
         state.fireRateCost = Math.floor(state.fireRateCost * 1.5);
-        document.getElementById('lvl-firerate').textContent = state.fireRateLvl;
-        document.getElementById('cost-firerate').textContent = state.fireRateCost;
         
         if (state.fireRate <= 50) {
             document.getElementById('cost-firerate').textContent = 'MAX';
@@ -1095,7 +1086,6 @@
         state.critChance += 2;
         state.critLvl += 1;
         state.critCost = Math.floor(state.critCost * 1.5);
-        document.getElementById('lvl-crit').textContent = state.critLvl;
         document.getElementById('cost-crit').textContent = state.critCost;
         document.getElementById('val-crit').textContent = state.critChance;
         updateUI();
