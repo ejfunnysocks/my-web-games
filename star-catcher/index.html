@@ -707,6 +707,7 @@
     const PLAYER_SPEED = 9;
     const STAR_POINTS = 10;
     const SPAWN_INTERVAL_MIN = 260;
+    const SPAWN_INTERVAL_INIT = 1200;
 
     let isMobile = (localStorage.getItem('globalMobileMode') === 'true');
     function applyMobileMode() {
@@ -773,6 +774,8 @@
       const c = PLATFORM_COLORS.find(x => x.id === id);
       playerEl.className = c ? c.class : 'player-white';
     }
+
+
 
     // Difficulty ramps with stars that have spawned/fallen (not caught)
     function getSpawnDelay() {

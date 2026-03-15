@@ -81,6 +81,8 @@
     .upgrade-btn:hover:not(:disabled) { background: #444; }
     .upgrade-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .upgrade-cost { color: #ffd700; font-weight: bold; display: block; margin-top: 4px; }
+    .stat-info { display: block; font-size: 11px; color: #94a3b8; margin: 2px 0; }
+    .stat-info span { color: #fff; font-weight: 600; }
     
     #level-progress-container {
       position: absolute;
@@ -548,14 +550,17 @@
       <div id="upgrades-panel">
         <button class="upgrade-btn" id="upg-damage">
           <div>Damage (Lvl <span id="lvl-damage">1</span>)</div>
+          <div class="stat-info">Current: <span id="val-damage">1</span> DMG</div>
           <span class="upgrade-cost" id="cost-damage">10</span>
         </button>
         <button class="upgrade-btn" id="upg-firerate">
           <div>Fire Rate (Lvl <span id="lvl-firerate">1</span>)</div>
+          <div class="stat-info">Current: <span id="val-firerate">400</span>ms</div>
           <span class="upgrade-cost" id="cost-firerate">10</span>
         </button>
         <button class="upgrade-btn" id="upg-crit">
           <div>Crit Chance (Lvl <span id="lvl-crit">1</span>)</div>
+          <div class="stat-info">Current: <span id="val-crit">2</span>%</div>
           <span class="upgrade-cost" id="cost-crit">15</span>
         </button>
       </div>
@@ -1032,6 +1037,10 @@
           document.getElementById('lvl-crit').textContent = state.critLvl;
           document.getElementById('cost-crit').textContent = state.critCost;
           
+          document.getElementById('val-damage').textContent = state.damage;
+          document.getElementById('val-firerate').textContent = Math.round(state.fireRate);
+          document.getElementById('val-crit').textContent = state.critChance;
+          
           if (!state.unlockedSkins) state.unlockedSkins = ['default'];
           if (!state.equippedSkin) state.equippedSkin = 'default';
           if (!state.unlockedBackgrounds) state.unlockedBackgrounds = ['bg-mountains'];
@@ -1053,6 +1062,7 @@
         state.damageCost = Math.floor(state.damageCost * 1.5);
         document.getElementById('lvl-damage').textContent = state.damageLvl;
         document.getElementById('cost-damage').textContent = state.damageCost;
+        document.getElementById('val-damage').textContent = state.damage;
         updateUI();
         saveProgress();
       }
@@ -1073,6 +1083,7 @@
         } else {
             document.getElementById('cost-firerate').textContent = state.fireRateCost;
         }
+        document.getElementById('val-firerate').textContent = Math.round(state.fireRate);
         updateUI();
         saveProgress();
       }
@@ -1086,6 +1097,7 @@
         state.critCost = Math.floor(state.critCost * 1.5);
         document.getElementById('lvl-crit').textContent = state.critLvl;
         document.getElementById('cost-crit').textContent = state.critCost;
+        document.getElementById('val-crit').textContent = state.critChance;
         updateUI();
         saveProgress();
       }
