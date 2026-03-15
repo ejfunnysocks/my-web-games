@@ -5,17 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cannon Blast</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       min-height: 100vh;
-      background: #111;
+      background: #0f172a;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Outfit', sans-serif;
       color: #fff;
       overflow: hidden;
+      opacity: 0;
+      animation: fadeIn 0.8s ease forwards;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
     #game-container {
       position: relative;
@@ -67,6 +76,7 @@
       font-size: 12px;
       text-align: center;
       transition: background 0.2s;
+      font-family: 'Outfit', sans-serif;
     }
     .upgrade-btn:hover:not(:disabled) { background: #444; }
     .upgrade-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -478,18 +488,36 @@
       border: 2px solid #fff;
     }
     
-    #close-shop-btn {
+    .back-btn {
       position: absolute;
       top: 20px;
       left: 20px;
-      min-width: 0 !important;
-      padding: 8px 15px !important;
-      background: #333;
-      border: 1px solid #555;
+      z-index: 100;
+      padding: 0.6rem 1.2rem;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 100px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+    .back-btn:hover { 
+      color: white; 
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.2);
     }
     </style>
 </head>
 <body>
+  <a href="../" class="back-btn">← Portal</a>
   <div id="game-container">
     <div id="game-background" class="bg-mountains">
       <div class="mountain mountain-1"><div class="peak"></div></div>
@@ -653,16 +681,29 @@
     ];
     
     function init() {
-      // Automatic Mobile Detection
-      const isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-      if (isMobile) {
+      function applyMobileMode() {
+        const isMobileMode = (localStorage.getItem('globalMobileMode') === 'true');
         const sliderContainer = document.getElementById('mobile-slider-container');
+        if (isMobileMode) {
+          sliderContainer.style.display = 'flex';
+          cannonEl.style.bottom = '120px';
+          upgradesPanel.style.bottom = '60px';
+        } else {
+          sliderContainer.style.display = 'none';
+          cannonEl.style.bottom = '60px';
+          upgradesPanel.style.bottom = '0';
+        }
+      }
+
+      applyMobileMode();
+      
+      // Global Mobile Mode Sync
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'globalMobileMode') applyMobileMode();
+      });
+
+      if (localStorage.getItem('globalMobileMode') === 'true') {
         const slider = document.getElementById('mobile-slider');
-        sliderContainer.style.display = 'flex';
-        
-        // Push the cannon and upgrades up slightly to accommodate the slider
-        cannonEl.style.bottom = '120px';
-        upgradesPanel.style.bottom = '60px';
         
         // Ensure slider touches don't trigger game dragging
         slider.addEventListener('touchstart', e => e.stopPropagation(), {passive: true});

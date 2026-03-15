@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Star Catcher</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       min-height: 100vh;
@@ -17,9 +19,16 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Outfit', sans-serif;
       color: #e0e0ff;
       overflow: hidden;
+      opacity: 0;
+      animation: fadeIn 0.8s ease forwards;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
     body::before {
       content: "";
@@ -583,9 +592,37 @@
       cursor: pointer;
       box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
     }
+
+    .back-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 100;
+      padding: 0.6rem 1.2rem;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 100px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    }
+    .back-btn:hover { 
+      color: white; 
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
     </style>
 </head>
 <body>
+  <a href="../" class="back-btn">← Portal</a>
   <h1>⭐ Star Catcher</h1>
   <p style="margin-bottom: 0.5rem; opacity: 0.9;">Catch stars, avoid bombs! Use ← → or A/D</p>
   <div class="score-board">
@@ -671,7 +708,22 @@
     const STAR_POINTS = 10;
     const SPAWN_INTERVAL_MIN = 260;
 
-    const isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    let isMobile = (localStorage.getItem('globalMobileMode') === 'true');
+    function applyMobileMode() {
+      isMobile = (localStorage.getItem('globalMobileMode') === 'true');
+      const sliderContainer = document.getElementById('mobile-slider-container');
+      if (isMobile) {
+        if (gameRunning) sliderContainer.style.display = 'flex';
+        playerEl.style.bottom = '80px';
+      } else {
+        sliderContainer.style.display = 'none';
+        playerEl.style.bottom = '24px';
+      }
+    }
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'globalMobileMode') applyMobileMode();
+    });
 
     const PLATFORM_COLORS = [
       { id: 'white', name: 'White', price: 0, class: 'player-white' },
@@ -1056,22 +1108,19 @@
     totalStarsEl.textContent = getTotalStars();
 
     // Mobile Slider Input
-    if (isMobile) {
-      const slider = document.getElementById('mobile-slider');
-      
-      // Stop slider touches from interfering with other game logic if needed
-      slider.addEventListener('touchstart', e => e.stopPropagation(), {passive: true});
-      slider.addEventListener('touchmove', e => e.stopPropagation(), {passive: true});
+    const slider = document.getElementById('mobile-slider');
+    
+    // Stop slider touches from interfering with other game logic if needed
+    slider.addEventListener('touchstart', e => e.stopPropagation(), {passive: true});
+    slider.addEventListener('touchmove', e => e.stopPropagation(), {passive: true});
 
-      // Move player higher to clear the slider
-      playerEl.style.bottom = '80px';
-      
-      slider.addEventListener('input', (e) => {
-        if (!gameRunning) return;
-        const percent = e.target.value / 100;
-        playerX = percent * (GAME_W - currentPlayerW);
-      });
-    }
+    slider.addEventListener('input', (e) => {
+      if (!gameRunning) return;
+      const percent = e.target.value / 100;
+      playerX = percent * (GAME_W - currentPlayerW);
+    });
+
+    applyMobileMode();
   </script>
 </body>
 </html>
