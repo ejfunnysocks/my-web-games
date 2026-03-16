@@ -619,6 +619,7 @@
         <span style="font-size: 24px;">🛒</span>
         <span>SHOP</span>
       </button>
+      <button class="screen-btn" id="reset-progress-btn" style="margin-top: 10px; background: #64748b; font-size: 14px; min-width: 120px;">Reset Progress</button>
     </div>
 
     <div id="shop-screen" class="screen-overlay" style="display: none;">
@@ -904,8 +905,13 @@
       }
 
       // Event listeners
-      document.addEventListener('keydown', e => state.keys[e.key] = true);
-      document.addEventListener('keyup', e => state.keys[e.key] = false);
+      document.addEventListener('keydown', e => {
+        state.keys[e.code] = true;
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+          e.preventDefault();
+        }
+      });
+      document.addEventListener('keyup', e => state.keys[e.code] = false);
       
       // Mouse dragging & shooting
       container.addEventListener('mousedown', (e) => {
@@ -977,6 +983,7 @@
         loadProgress();
         startLevel();
       });
+      document.getElementById('reset-progress-btn').addEventListener('click', resetProgress);
       document.getElementById('restart-btn').addEventListener('click', startLevel);
       document.getElementById('next-level-btn').addEventListener('click', () => {
         state.level += 1;
@@ -1204,7 +1211,7 @@
       state.boss = null;
       
       if (state.isBossLevel) {
-          const bossHp = state.level * 50;
+          const bossHp = state.level * 1000;
           const el = document.createElement('div');
           el.className = 'boss';
           el.innerText = bossHp;
@@ -1240,6 +1247,24 @@
       requestAnimationFrame(gameLoop);
     }
     
+    function resetProgress() {
+      if (confirm("Are you sure you want to reset all progress? Waves and upgrades will be lost.")) {
+        state.level = 1;
+        state.coins = 0;
+        state.damage = 1;
+        state.damageLvl = 1;
+        state.damageCost = 10;
+        state.fireRate = 400;
+        state.fireRateLvl = 1;
+        state.fireRateCost = 10;
+        state.critChance = 2;
+        state.critLvl = 1;
+        state.critCost = 15;
+        saveProgress();
+        loadProgress(); // Refresh UI/Stats
+      }
+    }
+
     function saveProgress() {
       const saveData = {
         level: state.level,
@@ -1434,14 +1459,15 @@
     function update(timestamp) {
       // Player movement
       const speed = 6;
-      if (state.keys['ArrowLeft'] || state.keys['a']) state.cannonX -= speed;
-      if (state.keys['ArrowRight'] || state.keys['d']) state.cannonX += speed;
+      if (state.keys['ArrowLeft'] || state.keys['KeyA']) state.cannonX -= speed;
+      if (state.keys['ArrowRight'] || state.keys['KeyD']) state.cannonX += speed;
       
       // Clamp cannon
       state.cannonX = Math.max(0, Math.min(GAME_W - CANNON_W, state.cannonX));
       
       // Shooting
-      if (state.isShooting && timestamp - state.lastShotTime > state.fireRate) {
+      const isKeyboardShooting = state.keys['ArrowUp'] || state.keys['KeyW'] || state.keys['Space'];
+      if ((state.isShooting || isKeyboardShooting) && timestamp - state.lastShotTime > state.fireRate) {
         state.lastShotTime = timestamp;
         shoot();
       }
@@ -1466,11 +1492,16 @@
              boss.x += boss.vx;
              if (boss.x <= 0 || boss.x + BOSS_W >= GAME_W) boss.vx *= -1;
              
-             // Spawn minions randomly
-             if (Math.random() < 0.015 && state.balls.length < state.maxBallsOnScreen) {
-                 const radius = random(20, 30);
-                 const hp = Math.max(1, Math.floor(state.level * 1.5));
-                 createBall(boss.x + BOSS_W/2, boss.y + BOSS_H, random(-2, 2), 2, radius, hp, 'normal');
+             // Spawn minions in bursts
+             if (!boss.lastSpawnTime) boss.lastSpawnTime = timestamp;
+             if (timestamp > boss.lastSpawnTime + 3000 && state.balls.length < state.maxBallsOnScreen) {
+                 boss.lastSpawnTime = timestamp;
+                 const spawnCount = 3 + Math.floor(state.level / 2);
+                 for (let i = 0; i < spawnCount; i++) {
+                     const radius = random(15, 35);
+                     const hp = Math.max(1, Math.floor(state.level * 2));
+                     createBall(boss.x + BOSS_W/2, boss.y + BOSS_H, random(-3, 3), 2, radius, hp, 'normal');
+                 }
              }
              
              // Trigger slam randomly
@@ -1728,7 +1759,7 @@
       updateUI();
       
       // Check win condition
-      if (state.ballsDestroyedThisLevel >= state.totalBallsForLevel && state.balls.length === 0) {
+      if (!state.isBossLevel && state.ballsDestroyedThisLevel >= state.totalBallsForLevel && state.balls.length === 0) {
         levelComplete();
       }
     }
