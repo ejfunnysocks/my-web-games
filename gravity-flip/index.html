@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gravity Flip | Arcade Hub</title>
+    <title>Ninja Dash | Arcade Hub</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
         
@@ -65,13 +65,18 @@
         h1 {
             font-size: 3.5rem;
             font-weight: 900;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             text-transform: uppercase;
             letter-spacing: -1px;
             background: linear-gradient(to bottom, #fff, var(--primary));
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
+        }
+
+        .ninja-icon-title {
+            font-size: 4rem;
+            margin-bottom: 0.5rem;
         }
 
         .btn {
@@ -143,8 +148,9 @@
 
         <!-- Menu Overlay -->
         <div id="menu-overlay" class="overlay">
-            <h1>Gravity Flip</h1>
-            <p style="margin-bottom: 2rem; color: #94a3b8; text-align: center; max-width: 80%;">Flip gravity to dodge spikes and stay on the platforms!</p>
+            <div class="ninja-icon-title">🥷</div>
+            <h1>Ninja Dash</h1>
+            <p style="margin-bottom: 2rem; color: #94a3b8; text-align: center; max-width: 80%;">Flip gravity to dodge spikes and survive! Master the way of the gravity ninja.</p>
             <button id="start-btn" class="btn">Launch</button>
         </div>
 
@@ -352,17 +358,26 @@
                 ctx.fill();
             });
 
-            // Draw Player
+            // Draw Player (Ninja)
             ctx.save();
             ctx.translate(state.player.x, state.player.y);
             ctx.rotate(state.player.rotation);
-            ctx.fillStyle = varColor('--primary');
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = varColor('--primary');
-            // Rounded square for better "flip" feel
+            
+            // Draw Ninja Body (rounded black shape)
+            ctx.fillStyle = '#000';
             ctx.beginPath();
-            ctx.roundRect(-state.player.radius, -state.player.radius, state.player.radius*2, state.player.radius*2, 4);
+            ctx.roundRect(-state.player.radius, -state.player.radius, state.player.radius*2, state.player.radius*2, 8);
             ctx.fill();
+
+            // Headband (Primary Color)
+            ctx.fillStyle = varColor('--primary');
+            ctx.fillRect(-state.player.radius, -4, state.player.radius*2, 8);
+            
+            // Eyes
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(4, -2, 6, 4); // Right eye
+            ctx.fillRect(-10, -2, 6, 4); // Left eye
+            
             ctx.restore();
         }
 
