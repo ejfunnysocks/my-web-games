@@ -121,11 +121,48 @@
             top: 20px;
             right: 20px;
             font-size: 1.5rem;
-            font-weight: 700;
+            font-weight: 900;
             color: var(--primary);
+            text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+            z-index: 100;
+        }
+
+        #best-bar-container {
+            position: absolute;
+            right: 15px;
+            top: 70px;
+            bottom: 70px;
+            width: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
             z-index: 90;
         }
 
+        #best-bar-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, var(--primary), var(--accent));
+            box-shadow: 0 0 15px var(--primary);
+            transition: height 0.3s;
+        }
+
+        #best-label {
+            position: absolute;
+            right: 35px;
+            bottom: 70px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            transform: rotate(-90deg);
+            transform-origin: right bottom;
+            white-space: nowrap;
+        }
         /* Instructions */
         .hint {
             position: absolute;
@@ -143,7 +180,9 @@
 <body>
     <div id="game-container">
         <a href="../" class="portal-btn">← Arcade Hub</a>
-        <div id="score-display">Score: 0</div>
+        <div id="score-display">Distance: 0m</div>
+        <div id="best-bar-container"><div id="best-bar-fill"></div></div>
+        <div id="best-label">Personal Best: 0m</div>
         <div class="hint">Tap to Flip Gravity</div>
         <canvas id="game-canvas"></canvas>
 
@@ -182,8 +221,8 @@
         // Constants
         const GROUND_H = 40;
         const PLAYER_SIZE = 30;
-        const MIN_GAP = 300; // Increased base gap for wider screen
-        const MAX_SPEED = 15;
+        const MIN_GAP = 600; // Even wider gap for accessibility
+        const MAX_SPEED = 18; // Faster peak speed for intensity
         const GRAVITY_FORCE = 0.6;
         const SPEED_INIT = 4;
 
@@ -200,6 +239,7 @@
                 rotation: 0,
                 animTime: 0
             },
+            best: parseInt(localStorage.getItem('ninja_best')) || 0,
             platforms: [],
             obstacles: [],
             particles: [],
@@ -277,6 +317,7 @@
             state.obstacles = [];
             state.particles = [];
             state.trail = [];
+            updateBestBar(); // Initialize best bar display
         }
 
         function createObstacle(x) {
@@ -315,7 +356,7 @@
             state.trail = state.trail.filter(t => t.life > 0);
 
             // Move Platforms & Obstacles
-            state.score += state.speed / 10;
+            state.score += state.speed / 30; // Slower meter accumulation
             
             state.platforms.forEach(p => p.x -= state.speed);
             if (state.platforms[0].x < -width) {
@@ -338,13 +379,38 @@
             state.obstacleTimer -= dt;
             if (state.obstacleTimer <= 0) {
                // Progression
-            state.speed = Math.min(MAX_SPEED, 6 + (state.score * 0.05)); // Faster speed scaling
+            state.speed = Math.min(MAX_SPEED, 6 + (state.score * 0.03)); // Slower speed scaling
             const spawnRate = 120; // Constant spawn rate, relies on speed for difficulty
             state.obstacles.push(createObstacle(width + 100));
             state.obstacleTimer = (spawnRate / state.speed) * 16.6; // Based on frame time
             }
 
             scoreEl.textContent = `Distance: ${Math.floor(state.score)}m`;
+            updateBestBar();
+            
+            // Clean up off-screen
+            state.platforms = state.platforms.filter(p => p.x + p.w > -100);
+        }
+
+        function updateBestBar() {
+            const fill = document.getElementById('best-bar-fill');
+            const label = document.getElementById('best-label');
+            const best = state.best;
+            
+            if (best === 0) {
+                fill.style.height = '0%';
+                label.textContent = 'Personal Best: 0m';
+            } else {
+                const percent = Math.min(100, (state.score / best) * 100);
+                fill.style.height = percent + '%';
+                label.textContent = `Personal Best: ${best}m`;
+                if (state.score > best) {
+                    label.style.color = 'var(--accent)';
+                    label.textContent = `NEW BEST: ${Math.floor(state.score)}m!`;
+                } else {
+                    label.style.color = '#94a3b8';
+                }
+            }
         }
 
         function draw() {
@@ -530,7 +596,10 @@
 
         function endGame() {
             state.running = false;
-            sfx.play('crash');
+            if (state.score > state.best) {
+                state.best = Math.floor(state.score);
+                localStorage.setItem('ninja_best', state.best);
+            }
             finalScoreEl.textContent = `Distance: ${Math.floor(state.score)}m`;
             gameOverOverlay.classList.remove('hidden');
         }

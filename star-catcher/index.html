@@ -106,6 +106,42 @@
         inset 0 0 40px rgba(255,255,255,0.03),
         0 0 44px rgba(20, 20, 60, 0.65);
     }
+    
+    #best-bar-container {
+      position: absolute;
+      right: 15px;
+      top: 50px;
+      bottom: 50px;
+      width: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      z-index: 15;
+    }
+    #best-bar-fill {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 0%;
+      background: linear-gradient(to top, #ffd700, #ff8c00);
+      box-shadow: 0 0 10px #ffd700;
+      transition: height 0.3s;
+    }
+    #best-label {
+      position: absolute;
+      right: 30px;
+      bottom: 50px;
+      font-size: 0.7rem;
+      color: #94aaa8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
+      transform: rotate(-90deg);
+      transform-origin: right bottom;
+      white-space: nowrap;
+      z-index: 15;
+    }
     #game-overlay {
       position: absolute;
       inset: 0;
@@ -686,6 +722,8 @@
     <div id="vfx-layer"></div>
     <div id="game-overlay"></div>
     <div id="active-powerups"></div>
+    <div id="best-bar-container"><div id="best-bar-fill"></div></div>
+    <div id="best-label">Best: 0</div>
     <div id="mobile-slider-container">
       <input type="range" id="mobile-slider" min="0" max="100" value="50">
     </div>
@@ -1254,6 +1292,46 @@
       requestAnimationFrame(gameLoop);
     }
 
+    let playerX = (GAME_W - PLAYER_W) / 2;
+    let score = 0;
+    let lives = 3;
+    let gameRunning = false;
+    let falling = [];
+    let spawnTimeoutId = null;
+    let keys = {};
+    let best = parseInt(localStorage.getItem('star_high')) || 0;
+
+    function getTotalStars() { return parseInt(localStorage.getItem('starCatcherTotalStars') || '0', 10); }
+    function setTotalStars(n) { localStorage.setItem('starCatcherTotalStars', String(n)); totalStarsEl.textContent = n; }
+    function getSelectedColor() { return localStorage.getItem('starCatcherColor') || 'white'; }
+    function setSelectedColor(id) { localStorage.setItem('starCatcherColor', id); }
+
+    function updateScore(pts) {
+      score += pts;
+      scoreEl.textContent = score;
+      updateBestBar();
+    }
+
+    function updateBestBar() {
+      const fill = document.getElementById('best-bar-fill');
+      const label = document.getElementById('best-label');
+      
+      if (best === 0) {
+        fill.style.height = '0%';
+        label.textContent = 'Best: 0';
+      } else {
+        const percent = Math.min(100, (score / best) * 100);
+        fill.style.height = percent + '%';
+        label.textContent = `Best: ${best}`;
+        if (score > best) {
+          label.style.color = '#ffd700';
+          label.textContent = `NEW BEST: ${score}!`;
+        } else {
+          label.style.color = '#94aaa8';
+        }
+      }
+    }
+
     function endGame(won) {
       gameRunning = false;
       document.getElementById('active-powerups').innerHTML = '';
@@ -1262,6 +1340,12 @@
       falling.forEach(o => o.el.remove());
       falling = [];
       setTotalStars(getTotalStars() + score);
+
+      if (score > best) {
+        best = score;
+        localStorage.setItem('star_high', best);
+      }
+
       endText.textContent = won ? 'You won! 🎉' : 'Game Over';
       endMsg.classList.remove('hidden');
       
@@ -1286,10 +1370,11 @@
       nextPowerupAt = 25 + (Math.floor(Math.random() * 9) - 4);
       effects = { rushUntil: 0, calmUntil: 0, shieldHitsLeft: 0, wideUntil: 0 };
       currentPlayerW = PLAYER_W;
-      playerX = (GAME_W - PLAYER_W) / 2;
+      playerX = (GAME_W - currentPlayerW) / 2;
       playerEl.style.left = playerX + 'px';
       gameRunning = true;
       lastTime = performance.now();
+      updateBestBar();
       scheduleSpawn();
       requestAnimationFrame(gameLoop);
 
