@@ -229,9 +229,10 @@
       position: absolute;
       width: 8px;
       height: 16px;
-      background: #ffcc00;
+      background: #000;
       border-radius: 4px;
       z-index: 4;
+      border: 1px solid #444;
     }
     
     .hit-text {
@@ -1386,6 +1387,7 @@
     function spawnLevelBall() {
       if (!state.running) return;
       if (state.isBossLevel) return; // Boss handles its own minions
+      if (state.ballsDestroyedThisLevel >= state.totalBallsForLevel) return; // Stop spawning when progress is full
       if (state.ballsSpawnedThisLevel >= state.totalBallsForLevel) return;
       if (state.balls.length >= state.maxBallsOnScreen) return; // Hard limit 5
       
@@ -1458,7 +1460,7 @@
     
     function update(timestamp) {
       // Player movement
-      const speed = 6;
+      const speed = 12;
       if (state.keys['ArrowLeft'] || state.keys['KeyA']) state.cannonX -= speed;
       if (state.keys['ArrowRight'] || state.keys['KeyD']) state.cannonX += speed;
       
