@@ -199,7 +199,9 @@
             platforms: [],
             obstacles: [],
             particles: [],
-            lastTime: 0
+            trail: [], // Teleport trail
+            lastTime: 0,
+            obstacleTimer: 0
         };
 
         // Utility
@@ -269,6 +271,7 @@
             ];
             state.obstacles = [];
             state.particles = [];
+            state.trail = [];
         }
 
         function createObstacle(x) {
@@ -276,7 +279,7 @@
             const w = 30;
             const h = 40;
             const y = isTop ? GROUND_H : height - GROUND_H - h;
-            return { x, y, w, h, isTop };
+            return { x, y, w, h, isTop, id: Date.now() };
         }
 
         function update(timestamp) {
@@ -291,15 +294,20 @@
             state.player.rotation += 0.1 * state.player.gravity;
 
             // Collision with Ground
-            if (state.player.y + state.player.radius > height - GROUND_H && state.player.gravity === 1) {
-                state.player.y = height - GROUND_H - state.player.radius;
-                if (Math.abs(state.player.vy) > 2) sfx.play('thud');
+            const bottomY = height - GROUND_H - state.player.radius;
+            const topY = GROUND_H + state.player.radius;
+
+            if (state.player.y > bottomY && state.player.gravity === 1) {
+                state.player.y = bottomY;
                 state.player.vy = 0;
-            } else if (state.player.y - state.player.radius < GROUND_H && state.player.gravity === -1) {
-                state.player.y = GROUND_H + state.player.radius;
-                if (Math.abs(state.player.vy) > 2) sfx.play('thud');
+            } else if (state.player.y < topY && state.player.gravity === -1) {
+                state.player.y = topY;
                 state.player.vy = 0;
             }
+
+            // Trail update
+            state.trail.forEach(t => t.life -= 0.05);
+            state.trail = state.trail.filter(t => t.life > 0);
 
             // Move Platforms & Obstacles
             state.speed += 0.001;
@@ -322,8 +330,12 @@
                 if (obs.x < -100) state.obstacles.splice(idx, 1);
             });
 
-            if (Math.random() < 0.02) {
+            // Obstacle Spawning (Fair & Scaling)
+            state.obstacleTimer -= dt;
+            if (state.obstacleTimer <= 0) {
+                const minGap = 200 - Math.min(100, state.score / 50);
                 state.obstacles.push(createObstacle(width + 100));
+                state.obstacleTimer = (minGap / state.speed) * 16.6; // Based on frame time
             }
 
             scoreEl.textContent = `Distance: ${Math.floor(state.score)}m`;
@@ -357,6 +369,16 @@
                 }
                 ctx.fill();
             });
+
+            // Draw Trail
+            state.trail.forEach(t => {
+                ctx.globalAlpha = t.life * 0.5;
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.roundRect(t.x - state.player.radius, t.y - state.player.radius, state.player.radius*2, state.player.radius*2, 8);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1.0;
 
             // Draw Player (Ninja)
             ctx.save();
@@ -394,7 +416,23 @@
         // --- Controls ---
         function handleFlip() {
             if (!state.running) return;
+            
+            // Teleport!
+            const oldY = state.player.y;
             state.player.gravity *= -1;
+            state.player.y = state.player.gravity === 1 ? (height - GROUND_H - state.player.radius) : (GROUND_H + state.player.radius);
+            state.player.vy = 0;
+
+            // Generate "teleport" trail blocks
+            const steps = 5;
+            for(let i=1; i<steps; i++) {
+                state.trail.push({
+                    x: state.player.x,
+                    y: oldY + (state.player.y - oldY) * (i/steps),
+                    life: 1.0 - (i/steps) * 0.5
+                });
+            }
+
             sfx.play('flip');
             // Tiny screen shake
             document.getElementById('game-container').animate([

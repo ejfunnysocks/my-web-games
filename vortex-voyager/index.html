@@ -194,9 +194,9 @@
         resize();
 
         // Constants
-        const TUNNEL_LAYERS = 15;
-        const LAYER_SPACING = 0.5;
-        const ROTATION_SENSITIVITY = 0.005;
+        const TUNNEL_LAYERS = 25;
+        const LAYER_SPACING = 0.4;
+        const ROTATION_SENSITIVITY = 0.008;
 
         // State
         const state = {
@@ -406,15 +406,16 @@
             // Draw layers from back to front
             for (let i = state.layers.length - 1; i >= 0; i--) {
                 const layer = state.layers[i];
-                const scale = 500 / (layer.z + 0.1);
-                const radius = 20 * scale;
-                const alpha = Math.min(1, layer.z / 2);
+                // Exponential scaling for better depth feel
+                const scale = Math.pow(1.5, -layer.z); 
+                const radius = width * scale * 0.8;
+                const alpha = Math.max(0, 1 - layer.z / 8);
 
-                if (radius > 1000) continue;
+                if (radius < 2) continue;
 
                 // Draw Ring
-                ctx.strokeStyle = `rgba(99, 102, 241, ${0.2 * (1-alpha)})`;
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = `rgba(99, 102, 241, ${0.5 * alpha})`;
+                ctx.lineWidth = 2 * alpha;
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
                 ctx.stroke();
@@ -426,24 +427,25 @@
                     ctx.rotate(obs.angle + state.rotation);
                     
                     if (obs.type === 'wall') {
-                        ctx.strokeStyle = `rgba(244, 63, 94, ${1-alpha})`;
-                        ctx.lineWidth = 10 * scale * 0.1;
+                        ctx.strokeStyle = `rgba(244, 63, 94, ${alpha})`;
+                        ctx.lineWidth = Math.max(1, 15 * scale);
                         ctx.beginPath();
                         ctx.arc(0, 0, radius, -obs.width/2, obs.width/2);
                         ctx.stroke();
                         
                         // Add glow
-                        ctx.shadowBlur = 15;
+                        ctx.shadowBlur = 10 * alpha;
                         ctx.shadowColor = '#f43f5e';
                         ctx.stroke();
                     } else if (obs.type === 'ring') {
-                        ctx.strokeStyle = `rgba(255, 255, 255, ${1-alpha})`;
-                        ctx.lineWidth = 5 * scale * 0.1;
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                        ctx.lineWidth = Math.max(1, 8 * scale);
                         ctx.beginPath();
                         ctx.arc(0, 0, radius, 0, Math.PI * 2);
                         ctx.stroke();
                     }
                     ctx.restore();
+                    ctx.shadowBlur = 0;
                 });
             }
 
