@@ -235,6 +235,23 @@
       border: 1px solid #444;
     }
     
+    #shield-visual {
+      position: absolute;
+      width: 80px;
+      height: 40px;
+      border: 4px solid rgba(74, 144, 226, 0.6);
+      border-bottom: none;
+      border-radius: 50% 50% 0 0;
+      pointer-events: none;
+      z-index: 10;
+      transition: opacity 0.3s;
+      opacity: 0;
+      filter: drop-shadow(0 0 8px #4a90e2);
+    }
+    #shield-visual.active {
+      opacity: 1;
+    }
+    
     .hit-text {
       position: absolute;
       color: white;
@@ -594,6 +611,7 @@
     </div>
 
     <div id="cannon">
+      <div id="shield-visual"></div>
       <div class="cannon-barrel"></div>
     </div>
     
@@ -718,8 +736,8 @@
       shockwaveLvl: 0, // 1 = every 10th shot explosive
       shockwaveCost: 200,
       shotCounter: 0,
-      bounceLvl: 0, // number of bounces
-      bounceCost: 250,
+      pierceLvl: 0, // number of pierces
+      pierceCost: 250,
       forceFieldLvl: 0, // 0 = none, 1 = active
       forceFieldCost: 300,
       hasForceField: false,
@@ -1143,7 +1161,7 @@
           { name: 'Bullet Size', id: 'bulletSize', lvl: state.bulletSizeLvl, cost: state.bulletSizeCost, max: 5, desc: 'Increases bullet hitbox' },
           { name: 'Proj Speed', id: 'projSpeed', lvl: state.projSpeedLvl, cost: state.projSpeedCost, max: 5, desc: 'Faster bullets' },
           { name: 'Shockwave', id: 'shockwave', lvl: state.shockwaveLvl, cost: state.shockwaveCost, max: 1, desc: 'Every 10th shot explodes' },
-          { name: 'Bouncy Bullets', id: 'bounce', lvl: state.bounceLvl, cost: state.bounceCost, max: 3, desc: 'Bullets bounce off balls' },
+          { name: 'Piercing Bullets', id: 'pierce', lvl: state.pierceLvl, cost: state.pierceCost, max: 3, desc: 'Bullets pass through balls' },
           { name: 'Force Field', id: 'forceField', lvl: state.forceFieldLvl, cost: state.forceFieldCost, max: 1, desc: 'Survive one hit' },
           { name: 'Repulsor', id: 'repulsor', lvl: state.repulsorLvl, cost: state.repulsorCost, max: 3, desc: 'Pushes balls away' }
       ];
@@ -1333,7 +1351,7 @@
           bulletSizeLvl: 1, bulletSizeCost: 75,
           projSpeedLvl: 1, projSpeedCost: 75,
           shockwaveLvl: 0, shockwaveCost: 200,
-          bounceLvl: 0, bounceCost: 250,
+          pierceLvl: 0, pierceCost: 250,
           forceFieldLvl: 0, forceFieldCost: 300,
           repulsorLvl: 0, repulsorCost: 250,
           hasForceField: false
@@ -1358,7 +1376,7 @@
         bulletSizeLvl: state.bulletSizeLvl, bulletSizeCost: state.bulletSizeCost,
         projSpeedLvl: state.projSpeedLvl, projSpeedCost: state.projSpeedCost,
         shockwaveLvl: state.shockwaveLvl, shockwaveCost: state.shockwaveCost,
-        bounceLvl: state.bounceLvl, bounceCost: state.bounceCost,
+        pierceLvl: state.pierceLvl, pierceCost: state.pierceCost,
         forceFieldLvl: state.forceFieldLvl, forceFieldCost: state.forceFieldCost,
         repulsorLvl: state.repulsorLvl, repulsorCost: state.repulsorCost
       };
@@ -1465,9 +1483,12 @@
       }
       
       // Force Field visual
+      const shieldVisual = document.getElementById('shield-visual');
       if (state.hasForceField) {
+        shieldVisual.classList.add('active');
         cannonEl.style.boxShadow = '0 0 15px #4a90e2, inset 0 0 10px #4a90e2';
       } else {
+        shieldVisual.classList.remove('active');
         cannonEl.style.boxShadow = '';
       }
     }
@@ -1750,9 +1771,13 @@
               const ballCx = b.x + b.radius;
               const ballCy = b.y + b.radius;
               
+              if (bullet.hitBalls && bullet.hitBalls.includes(i)) continue; // Already hit this ball
+              
               const distSq = (bx - ballCx)**2 + (by - ballCy)**2;
               
               if (distSq < (b.radius + 4)**2) {
+                if (bullet.hitBalls) bullet.hitBalls.push(i); // Mark as hit
+
                 // Hit! Calculate Damage and Crits
                 let finalDamage = state.damage;
                 let critMultiplier = 1 + Math.floor(state.critChance / 100);
@@ -1779,11 +1804,9 @@
                 b.el.style.filter = 'brightness(2)';
                 setTimeout(() => { if(b.el) b.el.style.filter = 'none'; }, 50);
                 
-                // Bouncy Bullets logic
-                if (bullet.bounces > 0) {
-                  bullet.bounces--;
-                  bullet.vy *= -1; // Reverse vertical direction
-                  bullet.x += random(-5, 5); // Slight randomness
+                // Piercing Bullets logic
+                if (bullet.pierce > 0) {
+                  bullet.pierce--;
                 } else {
                   // Shockwave logic
                   if (bullet.isExplosive) {
@@ -1965,8 +1988,9 @@
         state.bullets.push({
           x, y, el, 
           vy: -projSpeed, 
-          bounces: state.bounceLvl,
-          isExplosive
+          pierce: state.pierceLvl,
+          isExplosive,
+          hitBalls: [] // To avoid hitting the same ball multiple times per pierce
         });
       }
     }
