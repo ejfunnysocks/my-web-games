@@ -390,6 +390,36 @@
       overflow: hidden;
       background: linear-gradient(to bottom, #1a2a44 0%, #3a5a84 100%);
     }
+    .parallax-layer {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    .cloud {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50px;
+      filter: blur(20px);
+    }
+    .snow-particle {
+      position: absolute;
+      background: #fff;
+      border-radius: 50%;
+      opacity: 0.8;
+      pointer-events: none;
+    }
+    @keyframes heatHaze {
+      0% { transform: translateY(0) skewX(0deg); }
+      50% { transform: translateY(-5px) skewX(2deg); }
+      100% { transform: translateY(0) skewX(0deg); }
+    }
+    .heat-haze {
+      position: absolute;
+      bottom: 0; width: 100%; height: 200px;
+      background: linear-gradient(to top, rgba(255, 69, 0, 0.2), transparent);
+      filter: blur(8px);
+      animation: heatHaze 2s infinite alternate ease-in-out;
+    }
 
     /* Snowy Mountains Background */
     .bg-mountains .mountain {
@@ -427,17 +457,38 @@
       height: 200%;
       background-image: radial-gradient(#fff 1px, transparent 1px);
       background-size: 50px 50px;
-      opacity: 0.3;
-      animation: drift 60s linear infinite;
+      background: #02040a;
     }
-    @keyframes drift {
-      from { transform: translate(0, 0); }
-      to { transform: translate(-50px, -50px); }
+    .star {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      opacity: var(--op);
+    }
+    .nebula {
+      position: absolute;
+      width: 400px; height: 400px;
+      filter: blur(80px);
+      opacity: 0.15;
+      border-radius: 50%;
     }
 
     /* Magma Pit Background */
     .bg-lava {
-      background: #1a0505 !important;
+      background: #1a0800;
+    }
+    .lava-glow {
+      position: absolute;
+      bottom: 0; width: 100%; height: 60%;
+      background: radial-gradient(circle at 50% 100%, #ff4500 0%, transparent 70%);
+      opacity: 0.3;
+    }
+    .ember {
+      position: absolute;
+      background: #ff8800;
+      width: 2px; height: 2px;
+      border-radius: 50%;
+      box-shadow: 0 0 4px #ff4400;
     }
     .bg-lava::after {
       content: '';
@@ -522,9 +573,10 @@
   <a href="../" class="back-btn">← Portal</a>
   <div id="game-container">
     <div id="game-background" class="bg-mountains">
-      <div class="mountain mountain-1"><div class="peak"></div></div>
-      <div class="mountain mountain-2"><div class="peak"></div></div>
-      <div class="mountain mountain-3"><div class="peak"></div></div>
+      <div id="bg-layer-far" class="parallax-layer"></div>
+      <div id="bg-layer-mid" class="parallax-layer"></div>
+      <div id="bg-layer-near" class="parallax-layer"></div>
+      <div id="vfx-overlay" class="parallax-layer"></div>
     </div>
     
     <div id="ui-layer">
@@ -604,6 +656,10 @@
     const levelProgressContainer = document.getElementById('level-progress-container');
     const levelProgressFill = document.getElementById('level-progress-fill');
     const levelText = document.getElementById('level-text');
+    const vfxOverlay = document.getElementById('vfx-overlay');
+    const bgLayerFar = document.getElementById('bg-layer-far');
+    const bgLayerMid = document.getElementById('bg-layer-mid');
+    const bgLayerNear = document.getElementById('bg-layer-near');
     
     // Game constants
     const GAME_W = 600;
@@ -664,6 +720,136 @@
     
     // Utility
     function random(min, max) { return Math.random() * (max - min) + min; }
+
+    // --- SFX Engine (Procedural) ---
+    class SFXManager {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+      init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      play(type) {
+        if (!this.enabled || !this.ctx) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        const now = this.ctx.currentTime;
+        
+        switch(type) {
+          case 'shoot':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.1);
+            osc.start(); osc.stop(now + 0.1);
+            break;
+          case 'pop':
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+            gain.gain.setValueAtTime(0.05, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.05);
+            osc.start(); osc.stop(now + 0.05);
+            break;
+          case 'crit':
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(1200, now);
+            osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.15);
+            osc.start(); osc.stop(now + 0.15);
+            break;
+          case 'explosion':
+            this.playNoise(now, 0.3, 0.2);
+            break;
+          case 'pickup':
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.2);
+            osc.start(); osc.stop(now + 0.2);
+            break;
+        }
+      }
+      playNoise(time, duration, volume) {
+        const bufferSize = this.ctx.sampleRate * duration;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(volume, time);
+        gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+        noise.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(time);
+        noise.stop(time + duration);
+      }
+    }
+    const sfx = new SFXManager();
+
+    // --- Particle System ---
+    class ParticleSystem {
+      constructor() {
+        this.particles = [];
+      }
+      spawn(x, y, color, count = 8, type = 'debris') {
+        for (let i = 0; i < count; i++) {
+          const el = document.createElement('div');
+          el.style.position = 'absolute';
+          el.style.left = x + 'px';
+          el.style.top = y + 'px';
+          el.style.backgroundColor = color || '#fff';
+          el.style.width = random(3, 6) + 'px';
+          el.style.height = el.style.width;
+          el.style.borderRadius = '2px';
+          el.style.pointerEvents = 'none';
+          el.style.zIndex = '5';
+          vfxOverlay.appendChild(el);
+          
+          this.particles.push({
+            el,
+            x, y,
+            vx: random(-4, 4),
+            vy: random(-6, 2),
+            life: 1.0,
+            decay: random(0.02, 0.05)
+          });
+        }
+      }
+      update() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.15; // particle gravity
+          p.life -= p.decay;
+          
+          if (p.life <= 0) {
+            p.el.remove();
+            this.particles.splice(i, 1);
+          } else {
+            p.el.style.transform = `translate3d(${p.x - 5}px, ${p.y - 5}px, 0) scale(${p.life})`;
+            p.el.style.opacity = p.life;
+          }
+        }
+      }
+    }
+    const particles = new ParticleSystem();
+
+    function shakeScreen(intens = 5) {
+      container.classList.add('shake');
+      setTimeout(() => container.classList.remove('shake'), 180);
+    }
     
     const colors = [
       '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'
@@ -723,6 +909,7 @@
       
       // Mouse dragging & shooting
       container.addEventListener('mousedown', (e) => {
+        sfx.init();
         state.isShooting = true;
         // Check if starting drag on the cannon area (rough estimate or whole screen depending on preference)
         // Here we just allow dragging anywhere on the container for easier play
@@ -752,6 +939,7 @@
       
       // Touch dragging & shooting
       container.addEventListener('touchstart', (e) => { 
+        sfx.init();
         e.preventDefault(); 
         state.isShooting = true; 
         state.isDragging = true;
@@ -926,15 +1114,66 @@
 
     function applyBackground() {
       gameBg.className = state.equippedBackground;
-      // Handle special backgrounds
+      bgLayerFar.innerHTML = '';
+      bgLayerMid.innerHTML = '';
+      bgLayerNear.innerHTML = '';
+      
       if (state.equippedBackground === 'bg-mountains') {
-        gameBg.innerHTML = `
+        // Far: Small stars/snow
+        for(let i=0; i<30; i++) {
+          const cloud = document.createElement('div');
+          cloud.className = 'cloud';
+          cloud.style.width = random(100, 250) + 'px';
+          cloud.style.height = random(40, 80) + 'px';
+          cloud.style.left = random(-10, 110) + '%';
+          cloud.style.top = random(0, 60) + '%';
+          bgLayerFar.appendChild(cloud);
+        }
+        // Mid: Mountains
+        bgLayerMid.innerHTML = `
           <div class="mountain mountain-1"><div class="peak"></div></div>
           <div class="mountain mountain-2"><div class="peak"></div></div>
           <div class="mountain mountain-3"><div class="peak"></div></div>
         `;
-      } else {
-        gameBg.innerHTML = ''; // Keep simple for now
+      } else if (state.equippedBackground === 'bg-space') {
+        // Far: Stars
+        for(let i=0; i<100; i++) {
+           const star = document.createElement('div');
+           star.className = 'star';
+           const size = random(1, 4);
+           star.style.width = size + 'px';
+           star.style.height = size + 'px';
+           star.style.left = random(0, 100) + '%';
+           star.style.top = random(0, 100) + '%';
+           star.style.setProperty('--op', random(0.2, 0.8));
+           bgLayerFar.appendChild(star);
+        }
+        // Mid: Nebulas
+        const n1 = document.createElement('div');
+        n1.className = 'nebula';
+        n1.style.background = '#6366f1';
+        n1.style.left = '10%'; n1.style.top = '20%';
+        bgLayerMid.appendChild(n1);
+        const n2 = document.createElement('div');
+        n2.className = 'nebula';
+        n2.style.background = '#a855f7';
+        n2.style.left = '50%'; n2.style.top = '50%';
+        bgLayerMid.appendChild(n2);
+      } else if (state.equippedBackground === 'bg-lava') {
+        const glow = document.createElement('div');
+        glow.className = 'lava-glow';
+        bgLayerFar.appendChild(glow);
+        const haze = document.createElement('div');
+        haze.className = 'heat-haze';
+        bgLayerNear.appendChild(haze);
+        // Embers
+        for(let i=0; i<40; i++) {
+          const em = document.createElement('div');
+          em.className = 'ember';
+          em.style.left = random(0, 100) + '%';
+          em.style.bottom = random(0, 100) + '%';
+          bgLayerMid.appendChild(em);
+        }
       }
     }
     
@@ -1186,7 +1425,8 @@
       if (!state.running) return;
       
       update(timestamp);
-      draw();
+      particles.update();
+      draw(timestamp);
       
       requestAnimationFrame(gameLoop);
     }
@@ -1296,10 +1536,11 @@
                  
                  if (Math.random() < (extraCritChance / 100)) critMultiplier++;
                  if (critMultiplier > 1) { isCrit = true; finalDamage *= critMultiplier; }
-                 
                  boss.hp -= finalDamage;
                  boss.el.innerText = Math.ceil(boss.hp);
                  showHitText(bx, by, finalDamage, isCrit);
+                 sfx.play(isCrit ? 'crit' : 'pop');
+                 particles.spawn(bx, by, '#fff', isCrit ? 8 : 4);
                  
                  bullet.el.remove();
                  state.bullets.splice(j, 1);
@@ -1311,7 +1552,9 @@
                  
                  if (boss.hp <= 0) {
                      // Boss Defeated
-                     state.score += boss.maxHp;
+                     sfx.play('explosion');
+                     shakeScreen(15);
+                     particles.spawn(boss.x + BOSS_W/2, boss.y + BOSS_H/2, '#ef4444', 30);
                      spawnDrop(boss.x + BOSS_W/2, boss.y + BOSS_H/2, 20);
                      boss.el.remove();
                      state.boss = null;
@@ -1392,12 +1635,13 @@
                   isCrit = true;
                   finalDamage *= critMultiplier;
                 }
-                
                 b.hp -= finalDamage;
                 b.el.innerText = Math.ceil(b.hp);
                 
                 // Show floating hit text
                 showHitText(b.x + b.radius, b.y, finalDamage, isCrit);
+                sfx.play(isCrit ? 'crit' : 'pop');
+                particles.spawn(b.x + b.radius, b.y + b.radius, b.color, isCrit ? 10 : 5);
                 
                 // Visual hit flash
                 b.el.style.filter = 'brightness(2)';
@@ -1454,7 +1698,8 @@
     function destroyBall(index) {
       const b = state.balls[index];
       
-      // Drops
+      sfx.play('explosion');
+      particles.spawn(b.x + b.radius, b.y + b.radius, b.color, 15);
       spawnDrop(b.x + b.radius, b.y + b.radius, Math.ceil(b.maxHp / 2));
       
       // Activate powerups
@@ -1501,6 +1746,9 @@
     }
     
     function shoot() {
+      sfx.play('shoot');
+      particles.spawn(state.cannonX + CANNON_W/2, FLOOR_Y - 60, '#fffc00', 3);
+      
       const el = document.createElement('div');
       el.className = 'bullet';
       
@@ -1511,7 +1759,13 @@
       state.bullets.push({x, y, el});
     }
     
-    function draw() {
+    function draw(timestamp) {
+      // Parallax
+      const offset = (state.cannonX / GAME_W) * 20;
+      bgLayerFar.style.transform = `translateX(${-offset * 0.5}px)`;
+      bgLayerMid.style.transform = `translateX(${-offset * 1.5}px)`;
+      bgLayerNear.style.transform = `translateX(${-offset * 3}px)`;
+
       cannonEl.style.left = state.cannonX + 'px';
       
       state.bullets.forEach(b => {
