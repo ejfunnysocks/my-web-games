@@ -88,7 +88,7 @@
         /* Mobile Mode Toggle */
         .controls {
             margin-bottom: 4rem;
-            display: flex;
+            display: none; /* Hidden by default, shown via JS on mobile */
             align-items: center;
             justify-content: center;
             gap: 1rem;
@@ -142,13 +142,6 @@
         input:checked + .slider:before { transform: translateX(24px); }
 
         .switch.disabled { opacity: 0.5; pointer-events: none; }
-        .mobile-warning {
-            display: none;
-            font-size: 0.75rem;
-            color: #ef4444;
-            margin-top: 0.5rem;
-            font-weight: 500;
-        }
 
         /* Game Cards */
         .games-grid {
@@ -364,7 +357,6 @@
                 </label>
                 <span class="toggle-label">Mobile Mode</span>
             </div>
-            <div id="mobile-only-msg" class="mobile-warning">Available on mobile devices only</div>
         </div>
 
         <div class="games-grid">
@@ -427,20 +419,15 @@
         }
 
         const isMobile = isMobileDevice();
-        if (!isMobile) {
-            mobileToggle.disabled = true;
-            toggleSwitch.classList.add('disabled');
-            mobileOnlyMsg.style.display = 'block';
-            localStorage.setItem('globalMobileMode', 'false');
-            mobileToggle.checked = false;
-        }
-        
-        // Initial load (only if mobile or previously set)
         if (isMobile) {
+            document.getElementById('controls-panel').style.display = 'flex';
             const storedMode = localStorage.getItem('globalMobileMode');
             if (storedMode === 'true') {
                 mobileToggle.checked = true;
             }
+        } else {
+            localStorage.setItem('globalMobileMode', 'false');
+            mobileToggle.checked = false;
         }
 
         mobileToggle.addEventListener('change', () => {
