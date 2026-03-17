@@ -410,7 +410,7 @@
         <div class="hud-bottom">
             <div id="reload-msg" style="color: #ef4444; font-weight: 800; display: none; margin-bottom: 10px;">RELOADING...</div>
             <div style="color: #64748b; font-size: 12px; display: flex; gap: 20px;">
-                <span>WASD: Move | CLICK: Shoot | SPACE: Jump | R: Reload | SCROLL: Switch</span>
+                <span>WASD: Move | CLICK: Shoot | SPACE: Jump | R: Reload | SCROLL: Switch | F: Lock Mouse</span>
             </div>
         </div>
     </div>
@@ -855,7 +855,18 @@
             direction.addScaledVector(front, moveZ).addScaledVector(side, moveX);
             if (direction.length() > 0) {
                 direction.normalize();
-                state.me.pos.addScaledVector(direction, PLAYER_SPEED);
+                
+                // Horizontal Collision Check
+                const horizontalRay = new THREE.Raycaster(
+                    state.me.pos.clone().setY(state.me.pos.y - 0.8), // Check at knee/waist level
+                    direction,
+                    0, 1.0
+                );
+                const wallHits = horizontalRay.intersectObjects(state.obstacles);
+                
+                if (wallHits.length === 0) {
+                    state.me.pos.addScaledVector(direction, PLAYER_SPEED);
+                }
             }
 
             // Jump & Gravity & Obstacle Collision
@@ -875,7 +886,7 @@
 
             if (intersects.length > 0) {
                 const dist = intersects[0].distance;
-                if (dist <= PLAYER_HEIGHT + 0.05 && state.me.vel.y <= 0) {
+                if (dist <= PLAYER_HEIGHT + 0.1 && state.me.vel.y <= 0) {
                     onObject = true;
                     objectTop = intersects[0].point.y + PLAYER_HEIGHT;
                 }
@@ -946,6 +957,7 @@
             if (e.code === 'KeyR') reload();
             if (e.code === 'Digit1') { state.me.weapon = 'AR'; updateWeaponUI(); }
             if (e.code === 'Digit2') { state.me.weapon = 'SHOTGUN'; updateWeaponUI(); }
+            if (e.code === 'KeyF') controls.lock();
         });
 
         window.addEventListener('keyup', e => {
