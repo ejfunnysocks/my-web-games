@@ -1801,20 +1801,17 @@
     }
     
     function spawnDrop(x, y, amount) {
-        const visualCount = Math.min(Math.ceil(amount / 4), 3); // Only show ~25% of coins, max 3
-        for(let i=0; i<visualCount; i++) {
-            const el = document.createElement('div');
-            el.className = 'coin-drop';
-            container.appendChild(el);
-            
-            state.drops.push({
-                x, y,
-                vx: random(-3, 3),
-                vy: random(-5, -2),
-                el
-            });
-        }
-        // Immediately add coins (visuals drop to bottom)
+        // Single visual coin per drop to prevent lag
+        const el = document.createElement('div');
+        el.className = 'coin-drop';
+        container.appendChild(el);
+        state.drops.push({
+            x, y,
+            vx: random(-2, 2),
+            vy: random(-4, -2),
+            el
+        });
+        // Immediately add coins
         state.coins += Math.round(amount * state.coinMultiplier);
         updateUI();
     }
