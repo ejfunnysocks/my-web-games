@@ -440,28 +440,48 @@
     }
 
     /* Snowy Mountains Background */
-    .bg-mountains .mountain {
-      position: absolute;
-      bottom: 60px;
-      width: 0;
-      height: 0;
-      border-left: 150px solid transparent;
-      border-right: 150px solid transparent;
-      border-bottom: 200px solid #4a5a74;
+    .bg-mountains {
+      background: linear-gradient(to bottom, #0b1628 0%, #1a2a4a 30%, #2d4a6e 50%, #4a6e8a 70%, #8aabbf 100%) !important;
     }
-    .bg-mountains .mountain-1 { left: -50px; bottom: 60px; opacity: 0.8; }
-    .bg-mountains .mountain-2 { right: -50px; bottom: 80px; transform: scale(1.2); opacity: 0.6; }
-    .bg-mountains .mountain-3 { left: 150px; bottom: 50px; transform: scale(0.8); opacity: 0.9; }
-
-    .bg-mountains .peak {
+    .snowflake {
       position: absolute;
-      top: 0;
-      left: -150px;
-      width: 0;
-      height: 0;
-      border-left: 150px solid transparent;
-      border-right: 150px solid transparent;
-      border-bottom: 60px solid #fff;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.7;
+      animation: snowfall linear infinite;
+      pointer-events: none;
+    }
+    @keyframes snowfall {
+      0% { transform: translateY(-20px) translateX(0); opacity: 0.7; }
+      25% { transform: translateY(25%) translateX(10px); }
+      50% { transform: translateY(50%) translateX(-5px); }
+      75% { transform: translateY(75%) translateX(8px); }
+      100% { transform: translateY(calc(100vh + 20px)) translateX(-3px); opacity: 0.3; }
+    }
+    .mountain-range {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      pointer-events: none;
+    }
+    .mtn {
+      position: absolute;
+      bottom: 0;
+    }
+    .mtn-cap {
+      position: absolute;
+    }
+    .fog-layer {
+      position: absolute;
+      bottom: 0;
+      width: 200%;
+      height: 100px;
+      background: linear-gradient(to top, rgba(200,220,240,0.3) 0%, transparent 100%);
+      animation: fog-drift 20s linear infinite;
+    }
+    @keyframes fog-drift {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
     }
 
     /* Void Space Background */
@@ -491,9 +511,23 @@
       border-radius: 50%;
     }
 
-    /* Magma Pit Background */
+    /* Volcano Background */
     .bg-lava {
-      background: #1a0800;
+      background: linear-gradient(to bottom, #1a0500 0%, #2d0a00 30%, #4a1200 60%, #1a0800 100%) !important;
+    }
+    .volcano-cone {
+      position: absolute;
+      bottom: 0;
+      pointer-events: none;
+    }
+    .lava-stream {
+      position: absolute;
+      border-radius: 50%;
+      animation: lava-flow 2s ease-in-out infinite alternate;
+    }
+    @keyframes lava-flow {
+      0% { opacity: 0.6; transform: scaleY(1); }
+      100% { opacity: 1; transform: scaleY(1.1); }
     }
     .lava-glow {
       position: absolute;
@@ -504,9 +538,37 @@
     .ember {
       position: absolute;
       background: #ff8800;
-      width: 2px; height: 2px;
       border-radius: 50%;
       box-shadow: 0 0 4px #ff4400;
+      animation: ember-rise linear infinite;
+    }
+    @keyframes ember-rise {
+      0% { transform: translateY(0) scale(1); opacity: 1; }
+      50% { opacity: 0.8; }
+      100% { transform: translateY(-300px) scale(0.3); opacity: 0; }
+    }
+    .magma-chunk {
+      position: absolute;
+      border-radius: 40%;
+      animation: chunk-fly ease-out infinite;
+    }
+    @keyframes chunk-fly {
+      0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 1; }
+      60% { opacity: 0.8; }
+      100% { transform: translateY(-250px) translateX(var(--dx)) rotate(360deg); opacity: 0; }
+    }
+    .sky-glow {
+      position: absolute;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at 50% 80%, rgba(255,80,0,0.25) 0%, transparent 60%);
+      pointer-events: none;
+      animation: sky-pulse 4s ease-in-out infinite alternate;
+    }
+    @keyframes sky-pulse {
+      0% { opacity: 0.5; }
+      100% { opacity: 1; }
     }
     .bg-lava::after {
       content: '';
@@ -902,8 +964,8 @@
 
     const BACKGROUNDS = [
       { id: 'bg-mountains', name: 'Snowy Mountains', cost: 0, class: 'bg-mountains' },
-      { id: 'bg-space', name: 'Void Space', cost: 300, class: 'bg-space' }, // Dark plain background with spots
-      { id: 'bg-lava', name: 'Magma Pit', cost: 800, class: 'bg-lava' } // Orange glow at bottom
+      { id: 'bg-space', name: 'Void Space', cost: 300, class: 'bg-space' },
+      { id: 'bg-lava', name: 'Volcano', cost: 800, class: 'bg-lava' }
     ];
     
     function init() {
@@ -1210,22 +1272,46 @@
       bgLayerNear.innerHTML = '';
       
       if (state.equippedBackground === 'bg-mountains') {
-        // Far: Small stars/snow
-        for(let i=0; i<30; i++) {
-          const cloud = document.createElement('div');
-          cloud.className = 'cloud';
-          cloud.style.width = random(100, 250) + 'px';
-          cloud.style.height = random(40, 80) + 'px';
-          cloud.style.left = random(-10, 110) + '%';
-          cloud.style.top = random(0, 60) + '%';
-          bgLayerFar.appendChild(cloud);
+        // Far: Snowflakes
+        for(let i=0; i<40; i++) {
+          const flake = document.createElement('div');
+          flake.className = 'snowflake';
+          const size = random(2, 5);
+          flake.style.width = size + 'px';
+          flake.style.height = size + 'px';
+          flake.style.left = random(0, 100) + '%';
+          flake.style.top = random(-20, 100) + '%';
+          flake.style.animationDuration = random(6, 14) + 's';
+          flake.style.animationDelay = random(0, 8) + 's';
+          bgLayerFar.appendChild(flake);
         }
-        // Mid: Mountains
-        bgLayerMid.innerHTML = `
-          <div class="mountain mountain-1"><div class="peak"></div></div>
-          <div class="mountain mountain-2"><div class="peak"></div></div>
-          <div class="mountain mountain-3"><div class="peak"></div></div>
-        `;
+        // Mid: Layered mountain range
+        const mtnData = [
+          // Back mountains (darker, further away)
+          { left: -60, w: 250, h: 220, color: '#1e3050', capH: 50, capColor: 'rgba(200,215,230,0.6)', z: 1 },
+          { left: 180, w: 300, h: 260, color: '#1a2b48', capH: 60, capColor: 'rgba(210,225,240,0.5)', z: 1 },
+          { left: 400, w: 220, h: 200, color: '#1e3050', capH: 45, capColor: 'rgba(200,215,230,0.5)', z: 1 },
+          // Front mountains (lighter, closer)
+          { left: 40, w: 280, h: 280, color: '#2d4a6e', capH: 65, capColor: 'rgba(240,248,255,0.85)', z: 2 },
+          { left: 280, w: 340, h: 320, color: '#3a5a7e', capH: 75, capColor: 'rgba(245,250,255,0.9)', z: 2 },
+          { left: -30, w: 200, h: 180, color: '#3a5a7e', capH: 40, capColor: 'rgba(240,248,255,0.8)', z: 2 },
+          { left: 480, w: 200, h: 200, color: '#2d4a6e', capH: 45, capColor: 'rgba(240,248,255,0.8)', z: 2 },
+        ];
+        mtnData.forEach(m => {
+          const mtn = document.createElement('div');
+          mtn.className = 'mtn';
+          mtn.style.left = m.left + 'px';
+          mtn.style.width = m.w + 'px';
+          mtn.style.height = m.h + 'px';
+          mtn.style.zIndex = m.z;
+          mtn.style.clipPath = `polygon(0% 100%, ${random(40,55)}% 0%, 100% 100%)`;
+          mtn.style.background = `linear-gradient(to bottom, ${m.capColor} 0%, ${m.color} ${Math.round(m.capH/m.h*100)}%, ${m.color} 100%)`;
+          bgLayerMid.appendChild(mtn);
+        });
+        // Near: Fog layer
+        const fog = document.createElement('div');
+        fog.className = 'fog-layer';
+        bgLayerNear.appendChild(fog);
       } else if (state.equippedBackground === 'bg-space') {
         // Far: Stars
         for(let i=0; i<100; i++) {
@@ -1251,19 +1337,84 @@
         n2.style.left = '50%'; n2.style.top = '50%';
         bgLayerMid.appendChild(n2);
       } else if (state.equippedBackground === 'bg-lava') {
+        // Sky glow
+        const skyGlow = document.createElement('div');
+        skyGlow.className = 'sky-glow';
+        bgLayerFar.appendChild(skyGlow);
+        // Volcano cone using clip-path
+        const cone = document.createElement('div');
+        cone.className = 'volcano-cone';
+        cone.style.width = '400px';
+        cone.style.height = '350px';
+        cone.style.left = '50%';
+        cone.style.transform = 'translateX(-50%)';
+        cone.style.clipPath = 'polygon(15% 100%, 35% 15%, 42% 0%, 58% 0%, 65% 15%, 85% 100%)';
+        cone.style.background = 'linear-gradient(to bottom, #3d1a00 0%, #5a2200 30%, #2a1000 80%, #1a0800 100%)';
+        bgLayerMid.appendChild(cone);
+        // Crater glow (lava at the top)
+        const crater = document.createElement('div');
+        crater.className = 'volcano-cone';
+        crater.style.width = '80px';
+        crater.style.height = '30px';
+        crater.style.left = '50%';
+        crater.style.bottom = '320px';
+        crater.style.transform = 'translateX(-50%)';
+        crater.style.background = 'radial-gradient(ellipse, #ff6600 0%, #ff3300 50%, transparent 80%)';
+        crater.style.borderRadius = '50%';
+        crater.style.filter = 'blur(5px)';
+        crater.style.animation = 'pulse-glow 2s ease-in-out infinite alternate';
+        bgLayerMid.appendChild(crater);
+        // Lava streams down the volcano
+        const streamData = [
+          { left: '46%', w: 6, h: 120, bottom: 200, delay: 0 },
+          { left: '52%', w: 5, h: 150, bottom: 180, delay: 0.5 },
+          { left: '49%', w: 4, h: 100, bottom: 220, delay: 1 },
+        ];
+        streamData.forEach(s => {
+          const stream = document.createElement('div');
+          stream.className = 'lava-stream';
+          stream.style.left = s.left;
+          stream.style.width = s.w + 'px';
+          stream.style.height = s.h + 'px';
+          stream.style.bottom = s.bottom + 'px';
+          stream.style.background = 'linear-gradient(to bottom, #ff6600, #ff3300, #cc2200)';
+          stream.style.animationDelay = s.delay + 's';
+          stream.style.filter = 'blur(1px)';
+          stream.style.boxShadow = '0 0 8px #ff4400';
+          bgLayerMid.appendChild(stream);
+        });
+        // Base lava pool glow
         const glow = document.createElement('div');
         glow.className = 'lava-glow';
         bgLayerFar.appendChild(glow);
-        const haze = document.createElement('div');
-        haze.className = 'heat-haze';
-        bgLayerNear.appendChild(haze);
-        // Embers
-        for(let i=0; i<40; i++) {
+        // Flying magma chunks
+        for(let i=0; i<8; i++) {
+          const chunk = document.createElement('div');
+          chunk.className = 'magma-chunk';
+          const size = random(4, 10);
+          chunk.style.width = size + 'px';
+          chunk.style.height = size + 'px';
+          chunk.style.left = (48 + random(-8, 8)) + '%';
+          chunk.style.bottom = random(300, 340) + 'px';
+          chunk.style.background = `radial-gradient(circle, #ffaa00, #ff4400)`;
+          chunk.style.boxShadow = '0 0 6px #ff6600';
+          chunk.style.setProperty('--dx', random(-60, 60) + 'px');
+          chunk.style.animationDuration = random(1.5, 3.5) + 's';
+          chunk.style.animationDelay = random(0, 3) + 's';
+          bgLayerMid.appendChild(chunk);
+        }
+        // Rising embers
+        for(let i=0; i<25; i++) {
           const em = document.createElement('div');
           em.className = 'ember';
-          em.style.left = random(0, 100) + '%';
-          em.style.bottom = random(0, 100) + '%';
-          bgLayerMid.appendChild(em);
+          const size = random(2, 4);
+          em.style.width = size + 'px';
+          em.style.height = size + 'px';
+          em.style.left = random(10, 90) + '%';
+          em.style.bottom = random(0, 200) + 'px';
+          em.style.animationDuration = random(3, 7) + 's';
+          em.style.animationDelay = random(0, 5) + 's';
+          bgLayerNear.appendChild(em);
         }
       }
     }
