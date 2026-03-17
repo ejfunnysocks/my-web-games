@@ -438,7 +438,7 @@
         const PLAYER_SPEED = 0.15;
         const PLAYER_HEIGHT = 1.7;
         const GRAVITY = 0.008;
-        const JUMP_FORCE = 0.15;
+        const JUMP_FORCE = 0.22;
         const ARENA_SIZE = 50;
         const WEAPONS = {
             AR: { name: 'ASSAULT RIFLE', icon: '🔫', mag: 25, delay: 100, damage: 10, type: 'auto' },
@@ -583,6 +583,14 @@
             const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
             eye2.position.set(0.15, 2.05, 0.25);
             group.add(eye2);
+
+            // Indicator Arrow (Above Head)
+            const arrowGeo = new THREE.ConeGeometry(0.2, 0.4, 4);
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+            arrow.rotation.x = Math.PI; // Point down
+            arrow.position.set(0, 2.7, 0);
+            group.add(arrow);
 
             scene.add(group);
             return group;
@@ -862,7 +870,7 @@
 
             if (intersects.length > 0) {
                 const dist = intersects[0].distance;
-                if (dist < PLAYER_HEIGHT && state.me.vel.y <= 0) {
+                if (dist <= PLAYER_HEIGHT + 0.05 && state.me.vel.y <= 0) {
                     onObject = true;
                     objectTop = intersects[0].point.y + PLAYER_HEIGHT;
                 }
@@ -933,6 +941,10 @@
             if (e.code === 'KeyR') reload();
             if (e.code === 'Digit1') { state.me.weapon = 'AR'; updateWeaponUI(); }
             if (e.code === 'Digit2') { state.me.weapon = 'SHOTGUN'; updateWeaponUI(); }
+        });
+
+        window.addEventListener('keyup', e => {
+            state.keys[e.code] = false;
         });
 
         window.addEventListener('wheel', e => {
