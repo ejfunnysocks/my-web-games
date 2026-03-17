@@ -369,9 +369,11 @@
         </div>
         <div id="kill-feed"></div>
         <div id="hitmarker" class="hitmarker"></div>
-        <div class="hud-bottom">
-            <div style="color: #64748b; font-size: 12px;">WASD - Move | CLICK - Shoot | SPACE - Jump</div>
-        </div>
+            <div style="color: #64748b; font-size: 12px; display: flex; gap: 20px;">
+                <span>WASD - Move | CLICK - Shoot | SPACE - Jump | R - Reload</span>
+                <span id="ammo-display" style="color: #fbbf24; font-weight: 800;">AMMO: 25 / ∞</span>
+                <span id="reload-msg" style="color: #ef4444; font-weight: 800; display: none;">RELOADING...</span>
+            </div>
     </div>
 
     <div id="crosshair" class="hidden"></div>
@@ -399,6 +401,8 @@
         const GRAVITY = 0.008;
         const JUMP_FORCE = 0.15;
         const ARENA_SIZE = 50;
+        const RELOAD_TIME = 1500;
+        const MAG_SIZE = 25;
 
         // --- Game State ---
         const state = {
@@ -421,9 +425,12 @@
                 pos: new THREE.Vector3(0, -100, 0), // hide initially
                 rot: new THREE.Euler(),
                 mesh: null,
-                hp: 100
+                hp: 100,
+                ammo: 25,
+                reloading: false
             },
-            keys: {}
+            keys: {},
+            obstacles: []
         };
 
         // --- Three.js Setup ---
@@ -489,26 +496,48 @@
                 box.castShadow = true;
                 box.receiveShadow = true;
                 scene.add(box);
+                state.obstacles.push(box);
             }
         }
 
         function createOpponentMesh() {
             const group = new THREE.Group();
             
+            // Leg 1
+            const leg1Geo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
+            const legMat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
+            const leg1 = new THREE.Mesh(leg1Geo, legMat);
+            leg1.position.set(-0.2, 0.4, 0);
+            group.add(leg1);
+
+            // Leg 2
+            const leg2 = new THREE.Mesh(leg1Geo, legMat);
+            leg2.position.set(0.2, 0.4, 0);
+            group.add(leg2);
+
             // Body
-            const bodyGeo = new THREE.BoxGeometry(0.8, 1.8, 0.5);
-            const bodyMat = new THREE.MeshPhongMaterial({ color: 0xf43f5e });
+            const bodyGeo = new THREE.BoxGeometry(0.8, 0.9, 0.4);
+            const bodyMat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.position.y = 0.9;
+            body.position.set(0, 1.25, 0);
             group.add(body);
 
-            // Head (Visor)
-            const headGeo = new THREE.BoxGeometry(0.6, 0.4, 0.4);
-            const headMat = new THREE.MeshPhongMaterial({ color: 0x1e293b });
+            // Head
+            const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            const headMat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
             const head = new THREE.Mesh(headGeo, headMat);
-            head.position.y = 1.6;
-            head.position.z = 0.2;
+            head.position.set(0, 1.95, 0);
             group.add(head);
+
+            // Eyes (Face)
+            const eyeGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            const eyeMat = new THREE.MeshPhongMaterial({ color: 0x000000 });
+            const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye1.position.set(-0.15, 2.05, 0.25);
+            group.add(eye1);
+            const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye2.position.set(0.15, 2.05, 0.25);
+            group.add(eye2);
 
             scene.add(group);
             return group;
@@ -601,7 +630,11 @@
             state.me.pos.set(spawnX, PLAYER_HEIGHT, 0);
             camera.position.copy(state.me.pos);
             state.hp = 100;
+            state.opponent.hp = 100;
+            state.me.ammo = MAG_SIZE;
+            state.me.reloading = false;
             updateHPUI();
+            updateAmmoUI();
             
             controls.lock();
             
@@ -611,34 +644,58 @@
         }
 
         function shoot() {
+            if (!state.running || state.me.reloading) return;
+            if (state.me.ammo <= 0) {
+                reload();
+                return;
+            }
+
             const now = Date.now();
-            if (now - state.me.lastShot < 200) return;
+            if (now - state.me.lastShot < 100) return; // Faster AR fire rate
             state.me.lastShot = now;
+            state.me.ammo--;
+            updateAmmoUI();
 
-            // Recoil/Visual
-            const flash = new THREE.PointLight(0xfffc00, 2, 5);
-            flash.position.copy(camera.position).add(new THREE.Vector3(0,-0.2,0));
-            scene.add(flash);
-            setTimeout(() => scene.remove(flash), 30);
-
-            // Raycast for hits
+            // Trace/Visual (No big flash, just subtle tracer)
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
             
+            // Interaction visual
+            const flash = new THREE.PointLight(0xfffc00, 0.5, 2);
+            flash.position.copy(camera.position).add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(0.5));
+            scene.add(flash);
+            setTimeout(() => scene.remove(flash), 20);
+
             // Check if we hit opponent mesh
             const intersects = raycaster.intersectObject(state.opponent.mesh, true);
             if (intersects.length > 0) {
-                const hit = intersects[0];
                 showHitmarker();
-                state.conn.send({ type: 'hit', dmg: 20 });
+                state.conn.send({ type: 'hit', dmg: 10 }); // Lower damage for faster fire rate
             }
 
-            // Send shot info to opponent for tracer rendering
+            // Send shot info to opponent
             state.conn.send({ 
                 type: 'shot', 
                 origin: camera.position, 
                 dir: camera.getWorldDirection(new THREE.Vector3()) 
             });
+        }
+
+        function reload() {
+            if (state.me.reloading || state.me.ammo === MAG_SIZE) return;
+            state.me.reloading = true;
+            document.getElementById('reload-msg').style.display = 'block';
+            
+            setTimeout(() => {
+                state.me.ammo = MAG_SIZE;
+                state.me.reloading = false;
+                document.getElementById('reload-msg').style.display = 'none';
+                updateAmmoUI();
+            }, RELOAD_TIME);
+        }
+
+        function updateAmmoUI() {
+            document.getElementById('ammo-display').textContent = `AMMO: ${state.me.ammo} / ∞`;
         }
 
         function showHitmarker() {
@@ -706,12 +763,35 @@
                 state.me.pos.addScaledVector(direction, PLAYER_SPEED);
             }
 
-            // Jump & Gravity
+            // Jump & Gravity & Obstacle Collision
             state.me.vel.y -= GRAVITY;
             state.me.pos.y += state.me.vel.y;
 
+            let onObject = false;
+            let objectTop = 0;
+
+            // Raycast down for collision with boxes
+            const downRay = new THREE.Raycaster(
+                new THREE.Vector3(state.me.pos.x, state.me.pos.y, state.me.pos.z),
+                new THREE.Vector3(0, -1, 0),
+                0, PLAYER_HEIGHT
+            );
+            const intersects = downRay.intersectObjects(state.obstacles);
+
+            if (intersects.length > 0) {
+                const dist = intersects[0].distance;
+                if (dist < PLAYER_HEIGHT && state.me.vel.y <= 0) {
+                    onObject = true;
+                    objectTop = intersects[0].point.y + PLAYER_HEIGHT;
+                }
+            }
+
             if (state.me.pos.y < PLAYER_HEIGHT) {
                 state.me.pos.y = PLAYER_HEIGHT;
+                state.me.vel.y = 0;
+                state.me.onGround = true;
+            } else if (onObject) {
+                state.me.pos.y = objectTop;
                 state.me.vel.y = 0;
                 state.me.onGround = true;
             } else {
@@ -766,7 +846,10 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        window.addEventListener('keydown', e => state.keys[e.code] = true);
+        window.addEventListener('keydown', e => {
+            state.keys[e.code] = true;
+            if (e.code === 'KeyR') reload();
+        });
         window.addEventListener('keyup', e => state.keys[e.code] = false);
         
         window.addEventListener('mousedown', () => {
