@@ -236,6 +236,43 @@
         .info-card h2 { margin-top: 0; color: white; display: flex; align-items: center; gap: 10px; }
         .info-section { color: var(--primary); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; margin-top: 1.5rem; display: block; }
         .info-card p { color: #94a3b8; margin: 0.5rem 0; font-size: 0.95rem; line-height: 1.5; }
+
+        /* Pause Overlay */
+        #pause-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 250;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #pause-overlay.visible { display: flex; }
+        #pause-overlay h2 {
+            color: var(--primary);
+            font-size: 4rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 30px var(--primary);
+            letter-spacing: 8px;
+        }
+        .pause-btn {
+            padding: 1rem 3rem;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            font-weight: 700;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .pause-btn:hover {
+            transform: scale(1.1) translateY(-5px);
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -257,6 +294,10 @@
                 <span class="info-section">How it works</span>
                 <p>Spikes are attached to either the top or bottom wall. The ninja's running speed increases over time, making spikes come faster and giving you less reaction time. There's no health — one spike hit and it's over. Your distance is tracked in meters and saved as your personal best.</p>
             </div>
+        </div>
+        <div id="pause-overlay">
+            <h2>PAUSED</h2>
+            <button class="pause-btn" id="resume-btn">Resume</button>
         </div>
         <canvas id="game-canvas"></canvas>
 
@@ -303,6 +344,7 @@
         // State
         const state = {
             running: false,
+            paused: false,
             score: 0,
             speed: SPEED_INIT,
             player: {
@@ -622,8 +664,36 @@
             return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
         }
 
+        function startGame() {
+            state.running = true;
+            state.paused = false;
+            document.getElementById('pause-overlay').classList.remove('visible');
+            state.score = 0; state.speed = SPEED_INIT; state.platforms = []; state.obstacles = []; state.particles = []; state.trail = [];
+            state.player.y = height - GROUND_H - state.player.radius;
+            state.player.vy = 0; state.player.gravity = 1; state.player.rotation = 0;
+            state.lastTime = performance.now();
+            menuOverlay.classList.add('hidden');
+            gameOverOverlay.classList.add('hidden');
+            updateBestBar();
+        }
+
+        function togglePause() {
+            if (!state.running) return;
+            state.paused = !state.paused;
+            document.getElementById('pause-overlay').classList.toggle('visible', state.paused);
+            if (!state.paused) {
+                state.lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
         function gameLoop(timestamp) {
-            update(timestamp);
+            if (!state.running || state.paused) return;
+            const rawDt = timestamp - state.lastTime;
+            state.lastTime = timestamp;
+            const dt = Math.min(rawDt / 16.67, 2.0); // normalize to 60fps, cap at 2x
+            
+            update(dt);
             draw();
             requestAnimationFrame(gameLoop);
         }
@@ -663,10 +733,12 @@
 
         // --- State Management ---
         function startGame() {
+            state.running = true;
+            state.paused = false;
+            document.getElementById('pause-overlay').classList.remove('visible');
             menuOverlay.classList.add('hidden');
             gameOverOverlay.classList.add('hidden');
             initGame();
-            state.running = true;
             state.lastTime = performance.now();
         }
 
@@ -686,12 +758,19 @@
         requestAnimationFrame(gameLoop);
         document.getElementById('info-btn').addEventListener('click', (e) => {
             e.stopPropagation();
+            if (state.running && !state.paused) togglePause();
             document.getElementById('info-game-overlay').classList.add('visible');
         });
         document.getElementById('close-info').addEventListener('click', (e) => {
             e.stopPropagation();
             document.getElementById('info-game-overlay').classList.remove('visible');
+            if (state.running && state.paused) togglePause();
         });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Escape') togglePause();
+        });
+        document.getElementById('resume-btn').addEventListener('click', togglePause);
     </script>
 </body>
 </html>

@@ -764,6 +764,32 @@
     }
     .info-section-label { color: #ffd700; font-weight: bold; margin-top: 15px; display: block; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
     .info-content p { color: #e2e8f0; line-height: 1.5; font-size: 14px; margin: 5px 0; }
+
+    /* Pause Overlay */
+    #pause-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(5px);
+      z-index: 300;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #pause-overlay.visible { display: flex; }
+    #pause-overlay h2 {
+      color: #ffd700;
+      font-size: 3.5rem;
+      margin-bottom: 2rem;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+      letter-spacing: 4px;
+    }
+    .pause-btn-group {
+      display: flex;
+      gap: 15px;
+    }
+    </style>
     </style>
 </head>
 <body>
@@ -794,6 +820,13 @@
         <p><strong>Move:</strong> Arrow keys or A / D | <strong>Shoot:</strong> Hold W, ↑, or Space (auto-fires while held). On mobile, drag the slider to move and tap the fire button to shoot.</p>
         <span class="info-section-label">How it works</span>
         <p>Balls fly in from either side. Each ball has HP shown on it — shoot it enough times to destroy it. Spend coins earned from kills on upgrades like damage, fire rate, multi-shot, piercing bullets, and more. Boss rounds spawn a giant enemy that slams down at you and sends minion balls!</p>
+      </div>
+    </div>
+    
+    <div id="pause-overlay">
+      <h2>PAUSED</h2>
+      <div class="pause-btn-group">
+        <button class="screen-btn" id="resume-btn" style="font-size: 24px; min-width: 200px;">Resume</button>
       </div>
     </div>
     
@@ -898,6 +931,7 @@
     // State
     let state = {
       running: false,
+      paused: false,
       cannonX: 270,
       coins: 0,
       
@@ -1273,6 +1307,8 @@
     
     function showMenu() {
       state.running = false;
+      state.paused = false;
+      document.getElementById('pause-overlay').classList.remove('visible');
       mainMenuScreen.style.display = 'flex';
       gameOverScreen.style.display = 'none';
       victoryScreen.style.display = 'none';
@@ -1605,6 +1641,8 @@
       state.maxBallsOnScreen = Math.min(10, 3 + Math.floor((state.level - 1) / 2));
       
       state.running = true;
+      state.paused = false;
+      document.getElementById('pause-overlay').classList.remove('visible');
       state.cannonX = 270;
       state.bullets = [];
       state.balls = [];
@@ -1920,7 +1958,8 @@
         pierceLvl: 0, pierceCost: 250,
         forceFieldLvl: 0, forceFieldCost: 300,
         repulsorLvl: 0, repulsorCost: 250,
-        hasForceField: false
+        hasForceField: false,
+        paused: false // Ensure paused state is reset on rebirth
       });
       
       saveProgress();
@@ -1928,13 +1967,18 @@
       updateRebirthBadge();
       showMenu();
     }
-    
+
     // Loop
     let _lastFrameTime = 0;
     function gameLoop(timestamp) {
       if (!state.running) return;
+      if (state.paused) {
+        _lastFrameTime = timestamp; // Prevent time jump on resume
+        requestAnimationFrame(gameLoop);
+        return;
+      }
       
-      // Delta-time governor: normalize to 60fps, cap at 2x to prevent spiral after tab switch
+      // Delta-time governor: normalize to 60fps, cap at 2x to avoid spiral after tab switch
       const rawDt = _lastFrameTime ? timestamp - _lastFrameTime : 16.67;
       _lastFrameTime = timestamp;
       const dt = Math.min(rawDt / 16.67, 2.0);
@@ -2423,11 +2467,33 @@
     // Start!
     init();
     document.getElementById('info-btn').addEventListener('click', () => {
+      if (state.running && !state.paused) togglePause();
       document.getElementById('info-overlay').classList.add('visible');
     });
     document.getElementById('close-info').addEventListener('click', () => {
       document.getElementById('info-overlay').classList.remove('visible');
+      if (state.running && state.paused) togglePause();
     });
+    function togglePause() {
+      if (!state.running) return;
+      state.paused = !state.paused;
+      document.getElementById('pause-overlay').classList.toggle('visible', state.paused);
+      if (!state.paused) {
+        _lastFrameTime = performance.now();
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+    // Input handlers
+    window.addEventListener('keydown', e => {
+      state.keys[e.code] = true;
+      if (e.code === 'Escape') togglePause();
+    });
+    window.addEventListener('keyup', e => {
+      state.keys[e.code] = false;
+    });
+
+    document.getElementById('resume-btn').addEventListener('click', togglePause);
 
     // Final guard against clicks leaking
     document.querySelector('.info-content').addEventListener('click', (e) => e.stopPropagation());

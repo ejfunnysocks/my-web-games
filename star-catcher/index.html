@@ -92,6 +92,39 @@
       gap: 6px;
       backdrop-filter: blur(4px);
     }
+    /* Pause Overlay */
+    #pause-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(5px);
+      z-index: 150;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #pause-overlay.visible { display: flex; }
+    #pause-overlay h2 {
+      color: #ffd700;
+      font-size: 3rem;
+      margin-bottom: 2rem;
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+      letter-spacing: 4px;
+    }
+    .pause-btn {
+      padding: 12px 35px;
+      font-size: 1.4rem;
+      background: linear-gradient(180deg, #5c5cff, #3b3bbb);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      transition: transform 0.2s;
+    }
+    .pause-btn:hover { transform: scale(1.05); }
     #game {
       width: 400px;
       height: 500px;
@@ -737,6 +770,10 @@
     <div id="active-powerups"></div>
     <div id="best-bar-container"><div id="best-bar-fill"></div></div>
     <div id="best-label">Best: 0</div>
+    <div id="pause-overlay">
+      <h2>PAUSED</h2>
+      <button class="pause-btn" id="resume-btn">Resume</button>
+    </div>
     <div id="mobile-slider-container">
       <input type="range" id="mobile-slider" min="0" max="100" value="50">
     </div>
@@ -824,6 +861,7 @@
     let score = 0;
     let lives = 3;
     let gameRunning = false;
+    let isPaused = false;
     let falling = [];
     let spawnTimeoutId = null;
     let starsFallen = 0;
@@ -990,7 +1028,7 @@
     }
 
     function scheduleSpawn() {
-      if (!gameRunning) return;
+      if (!gameRunning || isPaused) return;
       spawnTimeoutId = setTimeout(() => {
         const bombChance = activeUntil('calmUntil') ? 0.12 : 0.26;
         const makeBomb = Math.random() < bombChance;
@@ -1144,14 +1182,30 @@
       currentPlayerW = PLAYER_W;
       playerX = (GAME_W - currentPlayerW) / 2;
       playerEl.style.left = playerX + 'px';
-      gameRunning = true; lastTime = performance.now();
+      gameRunning = true;
+      isPaused = false;
+      document.getElementById('pause-overlay').classList.remove('visible');
+      lastTime = performance.now();
       updateBestBar(); scheduleSpawn();
       requestAnimationFrame(gameLoop);
       if (isMobile) document.getElementById('mobile-slider-container').style.display = 'flex';
     }
 
-    function gameLoop(timestamp) {
+    function togglePause() {
       if (!gameRunning) return;
+      isPaused = !isPaused;
+      document.getElementById('pause-overlay').classList.toggle('visible', isPaused);
+      if (!isPaused) {
+        lastTime = performance.now(); // Reset lastTime to prevent large dt after unpause
+        scheduleSpawn();
+        requestAnimationFrame(gameLoop);
+      } else {
+        if (spawnTimeoutId) clearTimeout(spawnTimeoutId);
+      }
+    }
+
+    function gameLoop(timestamp) {
+      if (!gameRunning || isPaused) return;
       const rawDt = lastTime ? timestamp - lastTime : 16.67;
       lastTime = timestamp;
       const dt = Math.min(rawDt / 16.67, 2.0);
@@ -1209,8 +1263,22 @@
     menuPlayBtn.addEventListener('click', startGame);
     restartBtn.addEventListener('click', startGame);
     mainMenuBtn.addEventListener('click', showMainMenu);
-    infoBtn.addEventListener('click', () => infoOverlay.classList.toggle('hidden'));
-    infoCloseBtn.addEventListener('click', () => infoOverlay.classList.add('hidden'));
+    
+    window.addEventListener('keydown', e => {
+      keys[e.code] = true;
+      if (e.code === 'Escape' && gameRunning) togglePause();
+    });
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    infoBtn.addEventListener('click', () => {
+      if (gameRunning && !isPaused) togglePause();
+      infoOverlay.classList.remove('hidden');
+    });
+    infoCloseBtn.addEventListener('click', () => {
+      infoOverlay.classList.add('hidden');
+      if (gameRunning && isPaused) togglePause(); // Resume game if it was paused by info button
+    });
+    document.getElementById('resume-btn').addEventListener('click', togglePause);
 
     const slider = document.getElementById('mobile-slider');
     slider.addEventListener('touchstart', e => e.stopPropagation(), {passive: true});
