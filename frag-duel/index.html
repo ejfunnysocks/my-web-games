@@ -380,20 +380,28 @@
             <h1>FRAG DUEL</h1>
             <p style="color: #94a3b8; margin-bottom: 30px;">1v1 Tactical FPS - Peer-to-Peer</p>
             
+            <button id="quick-match-btn" class="primary-btn" style="width: 100%; margin-bottom: 20px;">
+                ⚡ Quick Match
+            </button>
+
+            <div style="margin: 20px 0; border-top: 1px solid rgba(255,255,255,0.1); position: relative;">
+                <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--surface); padding: 0 15px; color: #64748b; font-size: 12px; font-weight: 800;">OR PRIVATE DUEL</span>
+            </div>
+            
             <div id="host-controls">
-                <p class="status-msg">Your ID (Share this with your opponent):</p>
-                <div class="room-info" style="margin: 10px 0 25px 0;">
+                <p class="status-msg">Share your ID with a friend:</p>
+                <div class="room-info" style="margin: 10px 0 15px 0;">
                     <span id="id-display">Generating...</span>
                 </div>
                 <div class="btn-group">
-                    <button id="start-host-btn" class="primary-btn" disabled>Waiting for opponent...</button>
+                    <button id="start-host-btn" class="secondary-btn" disabled>Waiting for opponent...</button>
                 </div>
             </div>
 
-            <div style="margin: 30px 0; border-top: 1px solid rgba(255,255,255,0.05);"></div>
+            <div style="margin: 20px 0; border-top: 1px solid rgba(255,255,255,0.05);"></div>
 
             <div id="join-controls">
-                <p class="status-msg">Or join an existing game:</p>
+                <p class="status-msg">Join a friend's game:</p>
                 <input type="text" id="join-id-input" placeholder="Paste ID here...">
                 <button id="join-btn" class="secondary-btn" style="width: 100%;">Connect & Play</button>
             </div>
@@ -477,6 +485,7 @@
             isHost: false,
             connected: false,
             running: false,
+            isMatchmaking: false,
             hp: 100,
             me: {
                 pos: new THREE.Vector3(0, PLAYER_HEIGHT, 0),
@@ -620,6 +629,8 @@
         }
 
         // --- Networking ---
+        const LOBBY_ID = 'frag-duel-global-lobby-v1';
+
         function initPeer() {
             state.peer = new Peer();
             
@@ -631,14 +642,98 @@
             });
 
             state.peer.on('connection', (conn) => {
-                if (state.conn) return; // Only 1v1
+                if (state.conn) {
+                    conn.close(); // Only 1v1
+                    return;
+                }
+                
+                // If we were acting as the matchmaker, we need to transition
+                if (state.isMatchmaking) {
+                    state.isMatchmaking = false;
+                    document.getElementById('quick-match-btn').textContent = "⚡ Quick Match";
+                    document.getElementById('quick-match-btn').disabled = false;
+                }
+
                 setupConnection(conn);
                 state.isHost = true;
             });
 
             state.peer.on('error', (err) => {
                 console.error(err);
-                alert("PeerJS Error: " + err.type);
+                if (state.isMatchmaking && err.type === 'unavailable-id') {
+                    // Lobby is taken, that's good! It means someone is waiting.
+                    // Let's connect to them.
+                    connectToLobby();
+                } else {
+                    alert("Network Error: " + err.type);
+                    state.isMatchmaking = false;
+                    document.getElementById('quick-match-btn').textContent = "⚡ Quick Match";
+                    document.getElementById('quick-match-btn').disabled = false;
+                }
+            });
+        }
+
+        async function startQuickMatch() {
+            if (state.isMatchmaking) return;
+            state.isMatchmaking = true;
+            
+            const btn = document.getElementById('quick-match-btn');
+            btn.textContent = "🔍 Searching for players...";
+            btn.disabled = true;
+
+            // Strategy: 
+            // 1. Try to BE the lobby (Host).
+            // 2. If it fails (ID taken), then JOIN the lobby (Guest).
+            
+            // We need a temporary peer to try and take the LOBBY_ID
+            if (state.peer) state.peer.destroy();
+            
+            state.peer = new Peer(LOBBY_ID);
+            
+            state.peer.on('open', () => {
+                // We are the host of the lobby!
+                console.log("Acting as Matchmaker Host...");
+                state.peer.on('connection', (conn) => {
+                    setupConnection(conn);
+                    state.isHost = true;
+                    state.isMatchmaking = false;
+                    btn.textContent = "Partner Found!";
+                    setTimeout(startMatch, 1000);
+                });
+            });
+
+            state.peer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    // Lobby busy, join as guest
+                    connectToLobby();
+                }
+            });
+        }
+
+        function connectToLobby() {
+            // Re-init as a normal peer then connect to LOBBY_ID
+            if (state.peer) state.peer.destroy();
+            
+            state.peer = new Peer();
+            state.peer.on('open', (id) => {
+                state.id = id;
+                const conn = state.peer.connect(LOBBY_ID);
+                setupConnection(conn);
+                state.isHost = false;
+                state.isMatchmaking = false;
+                
+                conn.on('open', () => {
+                    document.getElementById('quick-match-btn').textContent = "Match Found!";
+                    // We wait for the host to send the 'start' message
+                });
+            });
+            
+            state.peer.on('error', (err) => {
+                console.error("Matchmaking Join Error:", err);
+                state.isMatchmaking = false;
+                document.getElementById('quick-match-btn').textContent = "⚡ Quick Match";
+                document.getElementById('quick-match-btn').disabled = false;
+                initPeer(); // reset to normal state
             });
         }
 
@@ -699,6 +794,7 @@
 
         // --- Gameplay ---
         function startMatch() {
+            if (state.running) return;
             state.running = true;
             document.getElementById('lobby-screen').classList.add('hidden');
             document.getElementById('game-over-screen').classList.add('hidden');
@@ -1046,6 +1142,10 @@
         document.getElementById('id-display').addEventListener('click', () => {
             navigator.clipboard.writeText(state.id);
             alert("Copied to clipboard! Send this to your opponent.");
+        });
+
+        document.getElementById('quick-match-btn').addEventListener('click', () => {
+            startQuickMatch();
         });
 
     </script>
