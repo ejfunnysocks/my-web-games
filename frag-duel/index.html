@@ -502,7 +502,10 @@
                 pos: new THREE.Vector3(0, -100, 0), // hide initially
                 rot: new THREE.Euler(),
                 mesh: null,
-                hp: 100
+                hp: 100,
+                weapon: 'AR',
+                walkCycle: 0,
+                parts: {} // References for animation
             },
             keys: {},
             obstacles: [],
@@ -597,47 +600,86 @@
             const group = new THREE.Group();
             
             // Legs
-            const legGeo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
-            const legMat = new THREE.MeshPhongMaterial({ color: 0x1e293b }); // Dark pants
+            const legGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+            const legMat = new THREE.MeshPhongMaterial({ color: 0x1e293b });
             
             const leftLeg = new THREE.Mesh(legGeo, legMat);
-            leftLeg.position.set(-0.2, 0.4, 0);
+            leftLeg.position.set(-0.15, -0.75, 0); // Relative to torso center
             leftLeg.castShadow = true;
-            group.add(leftLeg);
             
             const rightLeg = new THREE.Mesh(legGeo, legMat);
-            rightLeg.position.set(0.2, 0.4, 0);
+            rightLeg.position.set(0.15, -0.75, 0);
             rightLeg.castShadow = true;
-            group.add(rightLeg);
 
-            // Torso with Glow
-            const torsoGeo = new THREE.BoxGeometry(0.7, 0.6, 0.35);
+            // Torso
+            const torsoGeo = new THREE.BoxGeometry(0.5, 0.7, 0.3);
             const torsoMat = new THREE.MeshPhongMaterial({ 
-                color: 0xffff00,
-                emissive: 0xffff00,
-                emissiveIntensity: 0.4
+                color: 0x3b82f6,
+                emissive: 0x3b82f6,
+                emissiveIntensity: 0.3
             });
             const torso = new THREE.Mesh(torsoGeo, torsoMat);
-            torso.position.set(0, 1.1, 0);
+            torso.position.set(0, 0, 0);
             torso.castShadow = true;
             group.add(torso);
 
-            // Head (Headshot zone)
-            const headGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+            // Pivots for animation
+            const leftLegPivot = new THREE.Group();
+            leftLegPivot.position.set(0, 0.75, 0); // Position at hip
+            leftLegPivot.add(leftLeg);
+            group.add(leftLegPivot);
+
+            const rightLegPivot = new THREE.Group();
+            rightLegPivot.position.set(0, 0.75, 0);
+            rightLegPivot.add(rightLeg);
+            group.add(rightLegPivot);
+
+            // Arms
+            const armGeo = new THREE.BoxGeometry(0.2, 0.7, 0.2);
+            const leftArm = new THREE.Mesh(armGeo, torsoMat);
+            leftArm.position.set(-0.35, 0, 0);
+            leftArm.castShadow = true;
+            group.add(leftArm);
+            
+            const rightArmPivot = new THREE.Group();
+            rightArmPivot.position.set(0.35, 0.2, 0); // Shoulder
+            const rightArm = new THREE.Mesh(armGeo, torsoMat);
+            rightArm.position.set(0, -0.2, 0);
+            rightArm.castShadow = true;
+            rightArmPivot.add(rightArm);
+            group.add(rightArmPivot);
+
+            // Weapon Mesh
+            const weaponGeo = new THREE.BoxGeometry(0.15, 0.2, 0.8);
+            const weaponMat = new THREE.MeshPhongMaterial({ color: 0x334155 });
+            const weaponMesh = new THREE.Mesh(weaponGeo, weaponMat);
+            weaponMesh.position.set(0, -0.4, 0.4);
+            rightArmPivot.add(weaponMesh);
+
+            // Head
+            const headGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
             const headMat = new THREE.MeshPhongMaterial({ color: 0xff0000 });
             const head = new THREE.Mesh(headGeo, headMat);
-            head.position.set(0, 1.6, 0);
-            head.name = 'head'; // Used for precise headshot hitbox
+            head.position.set(0, 0.525, 0);
+            head.name = 'head';
             head.castShadow = true;
             group.add(head);
 
-            // Bright Indicator (Above Head)
+            // Bright Indicator
             const arrowGeo = new THREE.ConeGeometry(0.2, 0.4, 4);
             const arrowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             const arrow = new THREE.Mesh(arrowGeo, arrowMat);
             arrow.rotation.x = Math.PI;
-            arrow.position.set(0, 2.1, 0);
+            arrow.position.set(0, 0.9, 0);
             group.add(arrow);
+
+            state.opponent.parts = {
+                leftLeg: leftLeg,
+                rightLeg: rightLeg,
+                leftArm: leftArm,
+                rightArmPivot: rightArmPivot,
+                weapon: weaponMesh
+            };
 
             scene.add(group);
             return group;
@@ -784,12 +826,13 @@
                 } else if (data.type === 'update') {
                     const feetY = data.pos.y - PLAYER_HEIGHT;
                     if (!state.opponent.hasData) {
-                        state.opponent.pos.set(data.pos.x, feetY, data.pos.z);
-                        state.opponent.mesh.position.set(data.pos.x, feetY, data.pos.z);
+                        state.opponent.pos.set(data.pos.x, feetY + 1.15, data.pos.z); // Center on torso
+                        state.opponent.mesh.position.set(data.pos.x, feetY + 1.15, data.pos.z);
                         state.opponent.hasData = true;
                     }
-                    state.opponent.pos.set(data.pos.x, feetY, data.pos.z);
+                    state.opponent.pos.set(data.pos.x, feetY + 1.15, data.pos.z);
                     state.opponent.rot.y = data.rot.y;
+                    state.opponent.weapon = data.weapon;
                 } else if (data.type === 'shot') {
                     handleIncomingShot(data.origin, data.dir);
                 } else if (data.type === 'hit') {
@@ -1098,10 +1141,33 @@
 
             camera.position.copy(state.me.pos);
 
-            // Update Opponent Mesh
+            // Update Opponent Mesh & Animations
             if (state.opponent.mesh) {
+                const prevPos = state.opponent.mesh.position.clone();
                 state.opponent.mesh.position.lerp(state.opponent.pos, 0.2);
                 state.opponent.mesh.rotation.y = state.opponent.rot.y;
+
+                // Animation logic
+                const velocity = state.opponent.mesh.position.distanceTo(prevPos);
+                if (velocity > 0.01) {
+                    state.opponent.walkCycle += velocity * 5;
+                    const parts = state.opponent.parts;
+                    
+                    // Leg swing
+                    const swing = Math.sin(state.opponent.walkCycle) * 0.5;
+                    parts.leftLeg.rotation.x = swing;
+                    parts.rightLeg.rotation.x = -swing;
+                    
+                    // Arm swing
+                    parts.leftArm.rotation.x = -swing;
+                }
+
+                // Update weapon visual
+                if (state.opponent.parts.weapon) {
+                    const isShotgun = state.opponent.weapon === 'SHOTGUN';
+                    state.opponent.parts.weapon.scale.set(isShotgun ? 1.5 : 1, 1, isShotgun ? 0.8 : 1);
+                    state.opponent.parts.weapon.material.color.setHex(isShotgun ? 0x64748b : 0x334155);
+                }
             }
 
             // Update Bullets
@@ -1123,7 +1189,8 @@
                 state.conn.send({
                     type: 'update',
                     pos: { x: state.me.pos.x, y: state.me.pos.y, z: state.me.pos.z },
-                    rot: { y: camera.rotation.y }
+                    rot: { y: camera.rotation.y },
+                    weapon: state.me.weapon
                 });
                 state.lastSync = now;
             }

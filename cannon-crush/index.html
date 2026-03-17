@@ -1035,20 +1035,20 @@
       
       // Advanced Upgrades
       multiShotLvl: 1, // 1 = 1 bullet, 2 = 2 bullets, etc (max 3)
-      multiShotCost: 100,
+      multiShotCost: 2000,
       bulletSizeLvl: 1, // scales bullet size
-      bulletSizeCost: 75,
+      bulletSizeCost: 2000,
       projSpeedLvl: 1, // scales bullet speed
-      projSpeedCost: 75,
+      projSpeedCost: 2000,
       shockwaveLvl: 0, // 1 = every 10th shot explosive
-      shockwaveCost: 200,
+      shockwaveCost: 1000,
       shotCounter: 0,
       pierceLvl: 0, // number of pierces
-      pierceCost: 250,
+      pierceCost: 1000,
       forceFieldLvl: 0, // 0 = none, 1 = active
-      forceFieldCost: 300,
+      forceFieldCost: 3000,
       repulsorLvl: 0, // push balls away
-      repulsorCost: 250,
+      repulsorCost: 1000,
       
       // Rebirth
       rebirths: 0,
@@ -1575,7 +1575,8 @@
               if (state.coins >= upg.cost && !isMax) {
                   state.coins -= upg.cost;
                   state[upg.id + 'Lvl']++;
-                  state[upg.id + 'Cost'] = Math.floor(upg.cost * 2.2);
+                  let baseCost = (upg.id === 'forceField') ? 3000 : 1000;
+                  state[upg.id + 'Cost'] = (state[upg.id + 'Lvl'] + 1) * baseCost;
                   if (upg.id === 'forceField') state.hasForceField = true;
                   updateUI();
                   saveProgress();
@@ -1834,13 +1835,13 @@
           critCost: 15,
           
           // Advanced
-          multiShotLvl: 1, multiShotCost: 100,
-          bulletSizeLvl: 1, bulletSizeCost: 75,
-          projSpeedLvl: 1, projSpeedCost: 75,
-          shockwaveLvl: 0, shockwaveCost: 200,
-          pierceLvl: 0, pierceCost: 250,
-          forceFieldLvl: 0, forceFieldCost: 300,
-          repulsorLvl: 0, repulsorCost: 250,
+          multiShotLvl: 1, multiShotCost: 2000,
+          bulletSizeLvl: 1, bulletSizeCost: 2000,
+          projSpeedLvl: 1, projSpeedCost: 2000,
+          shockwaveLvl: 0, shockwaveCost: 1000,
+          pierceLvl: 0, pierceCost: 1000,
+          forceFieldLvl: 0, forceFieldCost: 3000,
+          repulsorLvl: 0, repulsorCost: 1000,
           forceFieldCharges: 0,
           rebirths: 0,
           coinMultiplier: 1
@@ -2076,13 +2077,13 @@
         critChance: 2,
         critLvl: 1,
         critCost: 15,
-        multiShotLvl: 1, multiShotCost: 100,
-        bulletSizeLvl: 1, bulletSizeCost: 75,
-        projSpeedLvl: 1, projSpeedCost: 75,
-        shockwaveLvl: 0, shockwaveCost: 200,
-        pierceLvl: 0, pierceCost: 250,
-        forceFieldLvl: 0, forceFieldCost: 300,
-        repulsorLvl: 0, repulsorCost: 250,
+        multiShotLvl: 1, multiShotCost: 2000,
+        bulletSizeLvl: 1, bulletSizeCost: 2000,
+        projSpeedLvl: 1, projSpeedCost: 2000,
+        shockwaveLvl: 0, shockwaveCost: 1000,
+        pierceLvl: 0, pierceCost: 1000,
+        forceFieldLvl: 0, forceFieldCost: 3000,
+        repulsorLvl: 0, repulsorCost: 1000,
         forceFieldCharges: 0,
         paused: false // Ensure paused state is reset on rebirth
       });
