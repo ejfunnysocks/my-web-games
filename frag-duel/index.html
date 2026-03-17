@@ -286,6 +286,41 @@
 
         #crosshair.sniper::before { width: 1px; height: 100%; left: 50%; top: 0; }
         #crosshair.sniper::after { height: 1px; width: 100%; top: 50%; left: 0; }
+        
+        #crosshair.minigun {
+            width: 30px;
+            height: 30px;
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+        }
+        #crosshair.minigun::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        #crosshair.rocket {
+            width: 40px;
+            height: 40px;
+        }
+        #crosshair.rocket::before, #crosshair.rocket::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.6);
+        }
+        #crosshair.rocket::before { width: 2px; height: 12px; left: 19px; top: 0; }
+        #crosshair.rocket::after { height: 2px; width: 12px; top: 19px; left: 0; }
+        #crosshair.rocket div {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
 
         /* --- Custom Styles --- */
         .room-info {
@@ -438,6 +473,25 @@
             z-index: 100;
         }
         #unlock-label.visible { opacity: 1; }
+
+        #unlock-label-minigun {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #fbbf24;
+            font-size: 14px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            writing-mode: vertical-lr;
+            text-orientation: mixed;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #unlock-label-minigun.visible { opacity: 1; }
     </style>
 </head>
 <body>
@@ -518,6 +572,7 @@
             </div>
         </div>
         <div id="unlock-label">rocket launcher unlocked</div>
+        <div id="unlock-label-minigun">minigun unlocked</div>
     </div>
 
     <div id="sniper-scope"></div>
@@ -1063,6 +1118,8 @@
             state.me.ammo.SHOTGUN = WEAPONS.SHOTGUN.mag;
             state.me.ammo.SMG = WEAPONS.SMG.mag;
             state.me.ammo.SNIPER = WEAPONS.SNIPER.mag;
+            state.me.ammo.ROCKET = WEAPONS.ROCKET.mag;
+            state.me.ammo.MINIGUN = WEAPONS.MINIGUN.mag;
             state.me.reloading = false;
             state.me.weapon = 'AR';
             state.me.roundKills = 0;
@@ -1073,6 +1130,8 @@
                 const label = document.getElementById('unlock-label');
                 if (label) label.classList.add('visible');
             }
+            const minigunLabel = document.getElementById('unlock-label-minigun');
+            if (minigunLabel) minigunLabel.classList.remove('visible');
             
             controls.lock();
             
@@ -1252,13 +1311,17 @@
             localStorage.setItem('frag_duel_kills', state.me.kills);
             
             // Rocket persistent unlock
-            if (state.me.kills === 1) {
+            if (state.me.kills >= 1) {
                 flashUnlock('🚀 ROCKET LAUNCHER UNLOCKED!');
+                const label = document.getElementById('unlock-label');
+                if (label) label.classList.add('visible');
             }
             
             // Minigun round unlock
-            if (state.me.roundKills === 1) {
+            if (state.me.roundKills >= 1) {
                 flashUnlock('🔥 MINIGUN UNLOCKED!');
+                const minigunLabel = document.getElementById('unlock-label-minigun');
+                if (minigunLabel) minigunLabel.classList.add('visible');
             }
         }
 
