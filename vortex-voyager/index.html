@@ -639,8 +639,23 @@
             particles.draw();
         }
 
+        function togglePause() {
+            if (!state.running) return;
+            state.paused = !state.paused;
+            document.getElementById('pause-overlay').classList.toggle('visible', state.paused);
+            if (!state.paused) {
+                state.lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
         function gameLoop(timestamp) {
-            update(timestamp);
+            if (!state.running || state.paused) return;
+            const rawDt = timestamp - state.lastTime;
+            state.lastTime = timestamp;
+            const dt = Math.min(rawDt / 16.67, 2.0); // normalize to 60fps, cap at 2x
+            
+            update(dt);
             draw();
             requestAnimationFrame(gameLoop);
         }

@@ -444,12 +444,7 @@
             return { x, y, w, h, isTop, id: Date.now() };
         }
 
-        function update(timestamp) {
-            const rawDt = timestamp - state.lastTime;
-            state.lastTime = timestamp;
-            // Normalize to 60fps, cap at 2x to avoid spiral after tab switch
-            const dt = Math.min(rawDt / 16.67, 2.0);
-
+        function update(dt) {
             if (!state.running) return;
 
             // Player Physics
@@ -664,18 +659,7 @@
             return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
         }
 
-        function startGame() {
-            state.running = true;
-            state.paused = false;
-            document.getElementById('pause-overlay').classList.remove('visible');
-            state.score = 0; state.speed = SPEED_INIT; state.platforms = []; state.obstacles = []; state.particles = []; state.trail = [];
-            state.player.y = height - GROUND_H - state.player.radius;
-            state.player.vy = 0; state.player.gravity = 1; state.player.rotation = 0;
-            state.lastTime = performance.now();
-            menuOverlay.classList.add('hidden');
-            gameOverOverlay.classList.add('hidden');
-            updateBestBar();
-        }
+        // State Management moved lower
 
         function togglePause() {
             if (!state.running) return;
