@@ -1801,18 +1801,6 @@
     }
     
     function spawnDrop(x, y, amount) {
-        // Single visual coin per drop to prevent lag
-        const el = document.createElement('div');
-        el.className = 'coin-drop';
-        container.appendChild(el);
-        state.drops.push({
-            x, y,
-            vx: random(-2, 2),
-            vy: random(-6, -3),
-            el,
-            spawnTime: Date.now()
-        });
-        // Immediately add coins
         state.coins += Math.round(amount * state.coinMultiplier);
         updateUI();
     }
