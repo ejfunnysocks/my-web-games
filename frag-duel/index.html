@@ -579,49 +579,32 @@
         function createOpponentMesh() {
             const group = new THREE.Group();
             
-            // Leg 1
-            const leg1Geo = new THREE.BoxGeometry(0.3, 0.8, 0.3);
-            const legMat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
-            const leg1 = new THREE.Mesh(leg1Geo, legMat);
-            leg1.position.set(-0.2, 0.4, 0);
-            group.add(leg1);
-
-            // Leg 2
-            const leg2 = new THREE.Mesh(leg1Geo, legMat);
-            leg2.position.set(0.2, 0.4, 0);
-            group.add(leg2);
-
-            // Body
-            const bodyGeo = new THREE.BoxGeometry(0.8, 0.9, 0.4);
-            const bodyMat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
+            // Body with Glow
+            const bodyGeo = new THREE.BoxGeometry(0.8, 1.8, 0.4);
+            const bodyMat = new THREE.MeshPhongMaterial({ 
+                color: 0xffff00,
+                emissive: 0xffff00,
+                emissiveIntensity: 0.5
+            });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
-            body.position.set(0, 1.25, 0);
+            body.position.set(0, 0.9, 0);
+            body.castShadow = true;
             group.add(body);
 
-            // Head
+            // Head (Headshot zone)
             const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-            const headMat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
+            const headMat = new THREE.MeshPhongMaterial({ color: 0xff0000 });
             const head = new THREE.Mesh(headGeo, headMat);
             head.position.set(0, 1.95, 0);
             head.name = 'head';
             group.add(head);
 
-            // Eyes (Face)
-            const eyeGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-            const eyeMat = new THREE.MeshPhongMaterial({ color: 0x000000 });
-            const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
-            eye1.position.set(-0.15, 2.05, 0.25);
-            group.add(eye1);
-            const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
-            eye2.position.set(0.15, 2.05, 0.25);
-            group.add(eye2);
-
-            // Indicator Arrow (Above Head)
-            const arrowGeo = new THREE.ConeGeometry(0.2, 0.4, 4);
-            const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            // Bright Indicator (Above Head)
+            const arrowGeo = new THREE.ConeGeometry(0.3, 0.6, 4);
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             const arrow = new THREE.Mesh(arrowGeo, arrowMat);
-            arrow.rotation.x = Math.PI; // Point down
-            arrow.position.set(0, 2.7, 0);
+            arrow.rotation.x = Math.PI;
+            arrow.position.set(0, 2.8, 0);
             group.add(arrow);
 
             scene.add(group);
@@ -743,6 +726,7 @@
             
             conn.on('open', () => {
                 document.getElementById('connection-status').textContent = "Opponent Connected";
+                state.opponent.hasData = false; // Reset for snapping
                 if(state.isHost) {
                     const btn = document.getElementById('start-host-btn');
                     btn.disabled = false;
@@ -754,8 +738,13 @@
                 if (data.type === 'start') {
                     startMatch();
                 } else if (data.type === 'update') {
-                    state.opponent.pos.copy(data.pos);
-                    state.opponent.rot.copy(data.rot);
+                    if (!state.opponent.hasData) {
+                        state.opponent.pos.set(data.pos.x, data.pos.y, data.pos.z);
+                        state.opponent.mesh.position.set(data.pos.x, data.pos.y, data.pos.z);
+                        state.opponent.hasData = true;
+                    }
+                    state.opponent.pos.set(data.pos.x, data.pos.y, data.pos.z);
+                    state.opponent.rot.y = data.rot.y;
                 } else if (data.type === 'shot') {
                     handleIncomingShot(data.origin, data.dir);
                 } else if (data.type === 'hit') {
@@ -773,12 +762,14 @@
         }
 
         function handleIncomingShot(origin, dir) {
-            spawnBullet(new THREE.Vector3().copy(origin), new THREE.Vector3().copy(dir));
+            const o = new THREE.Vector3(origin.x, origin.y, origin.z);
+            const d = new THREE.Vector3(dir.x, dir.y, dir.z);
+            spawnBullet(o, d);
         }
 
         function spawnBullet(origin, dir) {
-            const bulletGeo = new THREE.SphereGeometry(0.08, 8, 8);
-            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffa500 });
+            const bulletGeo = new THREE.SphereGeometry(0.15, 8, 8);
+            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
             const bullet = new THREE.Mesh(bulletGeo, bulletMat);
             
             bullet.position.copy(origin);
@@ -787,8 +778,8 @@
             state.bullets.push({
                 mesh: bullet,
                 dir: dir.clone().normalize(),
-                speed: 1.5,
-                life: 60 // frames
+                speed: 1.2,
+                life: 100 // frames
             });
         }
 
@@ -1062,13 +1053,15 @@
                 }
             }
 
-            // Networking Output
-            if (state.conn && state.conn.open) {
+            // Networking Output (Throttled to ~30 TPS to avoid flooding WebRTC)
+            const now = Date.now();
+            if (state.conn && state.conn.open && (!state.lastSync || now - state.lastSync > 32)) {
                 state.conn.send({
                     type: 'update',
-                    pos: state.me.pos,
+                    pos: { x: state.me.pos.x, y: state.me.pos.y, z: state.me.pos.z },
                     rot: { y: camera.rotation.y }
                 });
+                state.lastSync = now;
             }
 
             // shooting?
