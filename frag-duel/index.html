@@ -330,7 +330,7 @@
             <p style="color: #94a3b8; margin-bottom: 30px;">1v1 Tactical FPS - Peer-to-Peer</p>
             
             <div id="host-controls">
-                <p class="status-msg">Your ID (Share this with Dad):</p>
+                <p class="status-msg">Your ID (Share this with your opponent):</p>
                 <div class="room-info" style="margin: 10px 0 25px 0;">
                     <span id="id-display">Generating...</span>
                 </div>
@@ -342,7 +342,7 @@
             <div style="margin: 30px 0; border-top: 1px solid rgba(255,255,255,0.05);"></div>
 
             <div id="join-controls">
-                <p class="status-msg">Or join Dad's game:</p>
+                <p class="status-msg">Or join an existing game:</p>
                 <input type="text" id="join-id-input" placeholder="Paste ID here...">
                 <button id="join-btn" class="secondary-btn" style="width: 100%;">Connect & Play</button>
             </div>
@@ -352,7 +352,7 @@
     <div id="game-over-screen" class="screen hidden">
         <div class="menu-card">
             <h1 id="victory-text">VICTORY</h1>
-            <p id="match-summary" style="margin-bottom: 30px;">You fragged Dad!</p>
+            <p id="match-summary" style="margin-bottom: 30px;">You fragged the opponent!</p>
             <button id="rematch-btn" class="primary-btn">Play Again</button>
         </div>
     </div>
@@ -674,7 +674,7 @@
             
             document.getElementById('victory-text').textContent = victory ? "VICTORY" : "DEFEATED";
             document.getElementById('victory-text').style.color = victory ? "#3b82f6" : "#f43f5e";
-            document.getElementById('match-summary').textContent = victory ? "You fragged Dad!" : "Dad fragged you...";
+            document.getElementById('match-summary').textContent = victory ? "You fragged the opponent!" : "Your opponent fragged you...";
         }
 
         // --- Main Loop ---
@@ -794,7 +794,7 @@
 
         document.getElementById('id-display').addEventListener('click', () => {
             navigator.clipboard.writeText(state.id);
-            alert("Copied to clipboard! Send this to Dad.");
+            alert("Copied to clipboard! Send this to your opponent.");
         });
 
     </script>
