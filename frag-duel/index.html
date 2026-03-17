@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frag Duel | 1v1 Multiplayer FPS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --accent: #f43f5e;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --text: #f8fafc;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* --- UI Screens --- */
+        .screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 1));
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        .screen.hidden {
+            display: none;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .menu-card {
+            background: var(--surface);
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 30px;
+            background: linear-gradient(to right, #60a5fa, #f43f5e);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .primary-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            background: #2563eb;
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.5);
+        }
+
+        .secondary-btn {
+            background: transparent;
+            color: var(--text);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .secondary-btn:hover {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        input {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 14px;
+            border-radius: 12px;
+            color: white;
+            font-family: 'JetBrains Mono', monospace;
+            width: 100%;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        /* --- HUD --- */
+        #hud {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 30px;
+            z-index: 50;
+        }
+
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .hud-bottom {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        .stat-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+            padding: 15px 25px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .hp-bar-container {
+            width: 200px;
+            height: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        #hp-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to right, #f43f5e, #fb7185);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+        }
+
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: white;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        #crosshair::before { width: 2px; height: 100%; left: 9px; top: 0; }
+        #crosshair::after { height: 2px; width: 100%; top: 9px; left: 0; }
+
+        /* --- Custom Styles --- */
+        .room-info {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #94a3b8;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        #id-display {
+            color: var(--primary);
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(30, 41, 59, 1);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 1002;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn:hover {
+            background: #ef4444;
+        }
+
+        .status-msg {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        #kill-feed {
+            position: absolute;
+            top: 100px;
+            right: 30px;
+            text-align: right;
+            pointer-events: none;
+        }
+
+        .kill-msg {
+            background: rgba(0,0,0,0.5);
+            padding: 5px 12px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            font-size: 14px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .hitmarker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+            width: 30px;
+            height: 30px;
+            border: 2px solid transparent;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.1s;
+        }
+
+        .hitmarker::before, .hitmarker::after {
+            content: '';
+            position: absolute;
+            background: #f43f5e;
+        }
+
+        .hitmarker::before { width: 2px; height: 10px; left: 14px; top: 0; }
+        .hitmarker::after { height: 2px; width: 10px; top: 14px; left: 0; }
+        
+        #loading-screen {
+            background: var(--bg);
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid var(--surface);
+            border-bottom-color: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <a href="../" class="back-btn">← Arcade Hub</a>
+
+    <div id="loading-screen" class="screen">
+        <span class="loader"></span>
+        <p style="margin-top: 20px; color: #64748b;">Initializing 3D Engine...</p>
+    </div>
+
+    <div id="lobby-screen" class="screen hidden">
+        <div class="menu-card">
+            <h1>FRAG DUEL</h1>
+            <p style="color: #94a3b8; margin-bottom: 30px;">1v1 Tactical FPS - Peer-to-Peer</p>
+            
+            <div id="host-controls">
+                <p class="status-msg">Your ID (Share this with Dad):</p>
+                <div class="room-info" style="margin: 10px 0 25px 0;">
+                    <span id="id-display">Generating...</span>
+                </div>
+                <div class="btn-group">
+                    <button id="start-host-btn" class="primary-btn" disabled>Waiting for opponent...</button>
+                </div>
+            </div>
+
+            <div style="margin: 30px 0; border-top: 1px solid rgba(255,255,255,0.05);"></div>
+
+            <div id="join-controls">
+                <p class="status-msg">Or join Dad's game:</p>
+                <input type="text" id="join-id-input" placeholder="Paste ID here...">
+                <button id="join-btn" class="secondary-btn" style="width: 100%;">Connect & Play</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="screen hidden">
+        <div class="menu-card">
+            <h1 id="victory-text">VICTORY</h1>
+            <p id="match-summary" style="margin-bottom: 30px;">You fragged Dad!</p>
+            <button id="rematch-btn" class="primary-btn">Play Again</button>
+        </div>
+    </div>
+
+    <div id="hud" class="hidden">
+        <div class="hud-top">
+            <div class="stat-card">
+                <div style="font-size: 14px; font-weight: 800; color: #f43f5e;">HP</div>
+                <div class="hp-bar-container">
+                    <div id="hp-fill"></div>
+                </div>
+            </div>
+            <div class="room-info" id="connection-status">Connected</div>
+        </div>
+        <div id="kill-feed"></div>
+        <div id="hitmarker" class="hitmarker"></div>
+        <div class="hud-bottom">
+            <div style="color: #64748b; font-size: 12px;">WASD - Move | CLICK - Shoot | SPACE - Jump</div>
+        </div>
+    </div>
+
+    <div id="crosshair" class="hidden"></div>
+    <div id="canvas-container"></div>
+
+    <!-- Scripts -->
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- Configuration ---
+        const PLAYER_SPEED = 0.15;
+        const PLAYER_HEIGHT = 1.7;
+        const GRAVITY = 0.008;
+        const JUMP_FORCE = 0.15;
+        const ARENA_SIZE = 50;
+
+        // --- Game State ---
+        const state = {
+            id: null,
+            peer: null,
+            conn: null,
+            isHost: false,
+            connected: false,
+            running: false,
+            hp: 100,
+            me: {
+                pos: new THREE.Vector3(0, PLAYER_HEIGHT, 0),
+                rot: new THREE.Euler(0, 0, 0, 'YXZ'),
+                vel: new THREE.Vector3(0, 0, 0),
+                onGround: false,
+                lastShot: 0
+            },
+            opponent: {
+                id: null,
+                pos: new THREE.Vector3(0, -100, 0), // hide initially
+                rot: new THREE.Euler(),
+                mesh: null,
+                hp: 100
+            },
+            keys: {}
+        };
+
+        // --- Three.js Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a);
+        scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new PointerLockControls(camera, document.body);
+
+        // --- Scene Objects ---
+        function createArena() {
+            // Light
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambient);
+            
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            scene.add(sun);
+
+            // Floor
+            const floorGeo = new THREE.PlaneGeometry(ARENA_SIZE * 2, ARENA_SIZE * 2);
+            const floorMat = new THREE.MeshPhongMaterial({ color: 0x1e293b });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Grid for scale
+            const grid = new THREE.GridHelper(ARENA_SIZE * 2, 20, 0x334155, 0x1e293b);
+            scene.add(grid);
+
+            // Walls (Bounds)
+            const wallMat = new THREE.MeshPhongMaterial({ color: 0x0f172a });
+            for(let i=0; i<4; i++) {
+                const wallGeo = new THREE.PlaneGeometry(ARENA_SIZE * 2, 10);
+                const wall = new THREE.Mesh(wallGeo, wallMat);
+                wall.position.y = 5;
+                if(i === 0) { wall.position.z = -ARENA_SIZE; }
+                if(i === 1) { wall.position.z = ARENA_SIZE; wall.rotation.y = Math.PI; }
+                if(i === 2) { wall.position.x = -ARENA_SIZE; wall.rotation.y = Math.PI/2; }
+                if(i === 3) { wall.position.x = ARENA_SIZE; wall.rotation.y = -Math.PI/2; }
+                scene.add(wall);
+            }
+
+            // Obstacles
+            const boxGeo = new THREE.BoxGeometry(4, 4, 4);
+            const obstacleMat = new THREE.MeshPhongMaterial({ color: 0x334155 });
+            for(let i=0; i<15; i++) {
+                const box = new THREE.Mesh(boxGeo, obstacleMat);
+                box.position.set(
+                    (Math.random() - 0.5) * (ARENA_SIZE - 10),
+                    2,
+                    (Math.random() - 0.5) * (ARENA_SIZE - 10)
+                );
+                box.castShadow = true;
+                box.receiveShadow = true;
+                scene.add(box);
+            }
+        }
+
+        function createOpponentMesh() {
+            const group = new THREE.Group();
+            
+            // Body
+            const bodyGeo = new THREE.BoxGeometry(0.8, 1.8, 0.5);
+            const bodyMat = new THREE.MeshPhongMaterial({ color: 0xf43f5e });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.9;
+            group.add(body);
+
+            // Head (Visor)
+            const headGeo = new THREE.BoxGeometry(0.6, 0.4, 0.4);
+            const headMat = new THREE.MeshPhongMaterial({ color: 0x1e293b });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.6;
+            head.position.z = 0.2;
+            group.add(head);
+
+            scene.add(group);
+            return group;
+        }
+
+        // --- Networking ---
+        function initPeer() {
+            state.peer = new Peer();
+            
+            state.peer.on('open', (id) => {
+                state.id = id;
+                document.getElementById('id-display').textContent = id;
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('lobby-screen').classList.remove('hidden');
+            });
+
+            state.peer.on('connection', (conn) => {
+                if (state.conn) return; // Only 1v1
+                setupConnection(conn);
+                state.isHost = true;
+            });
+
+            state.peer.on('error', (err) => {
+                console.error(err);
+                alert("PeerJS Error: " + err.type);
+            });
+        }
+
+        function setupConnection(conn) {
+            state.conn = conn;
+            state.connected = true;
+            
+            conn.on('open', () => {
+                document.getElementById('connection-status').textContent = "Opponent Connected";
+                if(state.isHost) {
+                    const btn = document.getElementById('start-host-btn');
+                    btn.disabled = false;
+                    btn.textContent = "Start Match";
+                }
+            });
+
+            conn.on('data', (data) => {
+                if (data.type === 'start') {
+                    startMatch();
+                } else if (data.type === 'update') {
+                    state.opponent.pos.copy(data.pos);
+                    state.opponent.rot.copy(data.rot);
+                } else if (data.type === 'shot') {
+                    handleIncomingShot(data.origin, data.dir);
+                } else if (data.type === 'hit') {
+                    takeDamage(data.dmg);
+                }
+            });
+
+            conn.on('close', () => {
+                document.getElementById('connection-status').textContent = "Dad Disconnected";
+                state.connected = false;
+                state.running = false;
+                controls.unlock();
+                location.reload();
+            });
+        }
+
+        function handleIncomingShot(origin, dir) {
+            // Visual for opponent tracers
+            const tracerGeo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3().copy(origin),
+                new THREE.Vector3().copy(origin).add(new THREE.Vector3().copy(dir).multiplyScalar(100))
+            ]);
+            const tracerMat = new THREE.LineBasicMaterial({ color: 0xf43f5e, transparent: true, opacity: 0.5 });
+            const line = new THREE.Line(tracerGeo, tracerMat);
+            scene.add(line);
+            setTimeout(() => {
+                scene.remove(line);
+                tracerGeo.dispose();
+                tracerMat.dispose();
+            }, 50);
+        }
+
+        // --- Gameplay ---
+        function startMatch() {
+            state.running = true;
+            document.getElementById('lobby-screen').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('crosshair').classList.remove('hidden');
+            
+            // Random Spawns
+            const spawnX = state.isHost ? -10 : 10;
+            state.me.pos.set(spawnX, PLAYER_HEIGHT, 0);
+            camera.position.copy(state.me.pos);
+            state.hp = 100;
+            updateHPUI();
+            
+            controls.lock();
+            
+            if(state.isHost) {
+                state.conn.send({ type: 'start' });
+            }
+        }
+
+        function shoot() {
+            const now = Date.now();
+            if (now - state.me.lastShot < 200) return;
+            state.me.lastShot = now;
+
+            // Recoil/Visual
+            const flash = new THREE.PointLight(0xfffc00, 2, 5);
+            flash.position.copy(camera.position).add(new THREE.Vector3(0,-0.2,0));
+            scene.add(flash);
+            setTimeout(() => scene.remove(flash), 30);
+
+            // Raycast for hits
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            // Check if we hit opponent mesh
+            const intersects = raycaster.intersectObject(state.opponent.mesh, true);
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                showHitmarker();
+                state.conn.send({ type: 'hit', dmg: 20 });
+            }
+
+            // Send shot info to opponent for tracer rendering
+            state.conn.send({ 
+                type: 'shot', 
+                origin: camera.position, 
+                dir: camera.getWorldDirection(new THREE.Vector3()) 
+            });
+        }
+
+        function showHitmarker() {
+            const hm = document.getElementById('hitmarker');
+            hm.style.opacity = '1';
+            setTimeout(() => hm.style.opacity = '0', 100);
+        }
+
+        function takeDamage(dmg) {
+            state.hp -= dmg;
+            updateHPUI();
+            
+            // Screen flash red
+            document.body.style.background = '#450a0a';
+            setTimeout(() => document.body.style.background = '#0f172a', 100);
+
+            if (state.hp <= 0) {
+                endMatch(false);
+            }
+        }
+
+        function updateHPUI() {
+            document.getElementById('hp-fill').style.width = Math.max(0, state.hp) + '%';
+        }
+
+        function endMatch(victory) {
+            state.running = false;
+            controls.unlock();
+            
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('crosshair').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.remove('hidden');
+            
+            document.getElementById('victory-text').textContent = victory ? "VICTORY" : "DEFEATED";
+            document.getElementById('victory-text').style.color = victory ? "#3b82f6" : "#f43f5e";
+            document.getElementById('match-summary').textContent = victory ? "You fragged Dad!" : "Dad fragged you...";
+        }
+
+        // --- Main Loop ---
+        function update() {
+            if (!state.running) return;
+
+            // Move
+            const direction = new THREE.Vector3();
+            const front = new THREE.Vector3();
+            const side = new THREE.Vector3();
+
+            camera.getWorldDirection(front);
+            front.y = 0;
+            front.normalize();
+            
+            side.crossVectors(front, camera.up).normalize();
+
+            let moveX = 0;
+            let moveZ = 0;
+
+            if (state.keys['KeyW']) moveZ += 1;
+            if (state.keys['KeyS']) moveZ -= 1;
+            if (state.keys['KeyA']) moveX -= 1;
+            if (state.keys['KeyD']) moveX += 1;
+
+            direction.addScaledVector(front, moveZ).addScaledVector(side, moveX);
+            if (direction.length() > 0) {
+                direction.normalize();
+                state.me.pos.addScaledVector(direction, PLAYER_SPEED);
+            }
+
+            // Jump & Gravity
+            state.me.vel.y -= GRAVITY;
+            state.me.pos.y += state.me.vel.y;
+
+            if (state.me.pos.y < PLAYER_HEIGHT) {
+                state.me.pos.y = PLAYER_HEIGHT;
+                state.me.vel.y = 0;
+                state.me.onGround = true;
+            } else {
+                state.me.onGround = false;
+            }
+
+            if (state.keys['Space'] && state.me.onGround) {
+                state.me.vel.y = JUMP_FORCE;
+            }
+
+            // Arena Limiting
+            state.me.pos.x = Math.max(-ARENA_SIZE + 1, Math.min(ARENA_SIZE - 1, state.me.pos.x));
+            state.me.pos.z = Math.max(-ARENA_SIZE + 1, Math.min(ARENA_SIZE - 1, state.me.pos.z));
+
+            camera.position.copy(state.me.pos);
+
+            // Update Opponent Mesh
+            if (state.opponent.mesh) {
+                state.opponent.mesh.position.lerp(state.opponent.pos, 0.2);
+                state.opponent.mesh.rotation.y = state.opponent.rot.y;
+            }
+
+            // Networking Output
+            if (state.conn && state.conn.open) {
+                state.conn.send({
+                    type: 'update',
+                    pos: state.me.pos,
+                    rot: { y: camera.rotation.y }
+                });
+            }
+
+            // shooting?
+            if (state.isShooting) shoot();
+        }
+
+        function gameLoop() {
+            update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Initialization ---
+        createArena();
+        state.opponent.mesh = createOpponentMesh();
+        initPeer();
+        gameLoop();
+
+        // --- Event Listeners ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.addEventListener('keydown', e => state.keys[e.code] = true);
+        window.addEventListener('keyup', e => state.keys[e.code] = false);
+        
+        window.addEventListener('mousedown', () => {
+            if (state.running) state.isShooting = true;
+        });
+        window.addEventListener('mouseup', () => state.isShooting = false);
+
+        document.getElementById('join-btn').addEventListener('click', () => {
+            const id = document.getElementById('join-id-input').value.trim();
+            if (id) {
+                const conn = state.peer.connect(id);
+                setupConnection(conn);
+                state.isHost = false;
+                startMatch();
+            }
+        });
+
+        document.getElementById('start-host-btn').addEventListener('click', () => {
+            startMatch();
+        });
+
+        document.getElementById('rematch-btn').addEventListener('click', () => {
+            startMatch();
+        });
+
+        document.getElementById('id-display').addEventListener('click', () => {
+            navigator.clipboard.writeText(state.id);
+            alert("Copied to clipboard! Send this to Dad.");
+        });
+
+    </script>
+</body>
+</html>
