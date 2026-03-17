@@ -585,7 +585,7 @@
 
         canvas.addEventListener('mousedown', (e) => { sfx.init(); handleFlip(); });
         canvas.addEventListener('touchstart', (e) => { sfx.init(); handleFlip(); });
-        window.addEventListener('keydown', (e) => { if(e.code === 'Space') handleFlip(); });
+        window.addEventListener('keydown', (e) => { if(e.code === 'Space') { e.preventDefault(); handleFlip(); } });
 
         // --- State Management ---
         function startGame() {
@@ -606,8 +606,8 @@
             gameOverOverlay.classList.remove('hidden');
         }
 
-        document.getElementById('start-btn').addEventListener('click', startGame);
-        document.getElementById('restart-btn').addEventListener('click', startGame);
+        document.getElementById('start-btn').addEventListener('click', function() { this.blur(); startGame(); });
+        document.getElementById('restart-btn').addEventListener('click', function() { this.blur(); startGame(); });
 
         requestAnimationFrame(gameLoop);
     </script>

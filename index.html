@@ -419,6 +419,58 @@
             display: block;
         }
 
+        /* Star Ratings */
+        .star-rating {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-top: 0.6rem;
+        }
+        .star-rating .star {
+            font-size: 1rem;
+            color: #334155;
+            transition: color 0.2s;
+        }
+        .star-rating .star.lit {
+            color: #f59e0b;
+            text-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+        }
+        .star-rating .star.half {
+            background: linear-gradient(to right, #f59e0b 50%, #334155 50%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 4px rgba(245,158,11,0.5));
+        }
+
+        /* Arrow + rating wrapper next to Cannon Blast card */
+        .card-with-label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .card-side-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            color: #f59e0b;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+            text-shadow: 0 0 10px rgba(245,158,11,0.5);
+        }
+        .card-side-label .arrow {
+            font-size: 1.5rem;
+            animation: bounce-right 1.2s ease-in-out infinite;
+        }
+        @keyframes bounce-right {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(5px); }
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
@@ -443,19 +495,47 @@
         </div>
 
         <div class="games-grid">
-            <a href="cannon-blast/" class="game-card">
-                <div class="badge">Action</div>
-                <div class="game-icon">🚀</div>
-                <div class="game-title">Cannon Blast</div>
-                <p class="game-desc">Defend your base with powerful cannons and upgrades.</p>
-                <div class="play-hint">Play Now</div>
-            </a>
+            <div class="card-with-label">
+                <div class="card-side-label">
+                    <span>Top Pick</span>
+                    <span class="arrow">&#9658;</span>
+                    <div class="star-rating">
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                    </div>
+                    <span>5 / 5</span>
+                </div>
+                <a href="cannon-blast/" class="game-card" style="flex:1;">
+                    <div class="badge">Action</div>
+                    <div class="game-icon">🚀</div>
+                    <div class="game-title">Cannon Blast</div>
+                    <p class="game-desc">Defend your base with powerful cannons and upgrades.</p>
+                    <div class="star-rating" style="justify-content:center;">
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                    </div>
+                    <div class="play-hint">Play Now</div>
+                </a>
+            </div>
 
             <a href="star-catcher/" class="game-card star-catcher">
                 <div class="badge">Casual</div>
                 <div class="game-icon">⭐</div>
                 <div class="game-title">Star Catcher</div>
                 <p class="game-desc">Catch falling stars and unlock vibrant themes.</p>
+                <div class="star-rating" style="justify-content:center;">
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star">&#9734;</span>
+                    <span class="star">&#9734;</span>
+                    <span class="star">&#9734;</span>
+                </div>
                 <div class="play-hint">Play Now</div>
             </a>
 
@@ -464,6 +544,13 @@
                 <div class="game-icon">🌀</div>
                 <div class="game-title">Vortex Voyager</div>
                 <p class="game-desc">Dive into the neon tunnel and dodge the void.</p>
+                <div class="star-rating" style="justify-content:center;">
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star half">&#9733;</span>
+                    <span class="star">&#9734;</span>
+                </div>
                 <div class="play-hint">Play Now</div>
             </a>
 
@@ -472,6 +559,13 @@
                 <div class="game-icon">🥷</div>
                 <div class="game-title">Ninja Dash</div>
                 <p class="game-desc">Master gravity and survive the neon hurdles.</p>
+                <div class="star-rating" style="justify-content:center;">
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star">&#9734;</span>
+                </div>
                 <div class="play-hint">Play Now</div>
             </a>
         </div>
