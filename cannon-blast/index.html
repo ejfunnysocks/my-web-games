@@ -1550,7 +1550,8 @@
     }
     
     function spawnDrop(x, y, amount) {
-        for(let i=0; i<Math.min(amount, 10); i++) { // cap visuals to 10 max
+        const visualCount = Math.min(Math.ceil(amount / 4), 3); // Only show ~25% of coins, max 3
+        for(let i=0; i<visualCount; i++) {
             const el = document.createElement('div');
             el.className = 'coin-drop';
             container.appendChild(el);
