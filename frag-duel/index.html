@@ -613,9 +613,18 @@
 
         // --- Networking ---
         const LOBBY_ID = 'frag-duel-global-lobby-v1';
+        const PEER_CONFIG = {
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' }
+                ]
+            }
+        };
 
         function initPeer() {
-            state.peer = new Peer();
+            state.peer = new Peer(PEER_CONFIG);
             
             state.peer.on('open', (id) => {
                 state.id = id;
@@ -671,7 +680,7 @@
             // We need a temporary peer to try and take the LOBBY_ID
             if (state.peer) state.peer.destroy();
             
-            state.peer = new Peer(LOBBY_ID);
+            state.peer = new Peer(LOBBY_ID, PEER_CONFIG);
             
             state.peer.on('open', () => {
                 // We are the host of the lobby!
@@ -680,8 +689,11 @@
                     setupConnection(conn);
                     state.isHost = true;
                     state.isMatchmaking = false;
-                    btn.textContent = "Partner Found!";
-                    setTimeout(startMatch, 1000);
+                    btn.textContent = "Connecting...";
+                    conn.on('open', () => {
+                        btn.textContent = "Partner Found!";
+                        setTimeout(startMatch, 1000);
+                    });
                 });
             });
 
@@ -697,7 +709,7 @@
             // Re-init as a normal peer then connect to LOBBY_ID
             if (state.peer) state.peer.destroy();
             
-            state.peer = new Peer();
+            state.peer = new Peer(PEER_CONFIG);
             state.peer.on('open', (id) => {
                 state.id = id;
                 const conn = state.peer.connect(LOBBY_ID);
