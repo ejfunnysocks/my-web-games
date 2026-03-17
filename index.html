@@ -501,9 +501,7 @@
                 <span class="instr-section-label">Controls</span>
                 <p><strong>Move:</strong> Arrow keys or A / D &nbsp;|&nbsp; <strong>Shoot:</strong> Hold W, ↑, or Space (auto-fires while held). On mobile, drag the slider to move and tap the fire button to shoot.</p>
                 <span class="instr-section-label">How it works</span>
-                <p>Balls fly in from either side. Each ball has HP shown on it — shoot it enough times to destroy it. The cannon levels up between waves. Spend coins earned from kills on upgrades like damage, fire rate, multi-shot, piercing bullets, and more. Boss rounds spawn a giant enemy that slams down at you and sends minion balls!</p>
-                <span class="instr-section-label">Tips</span>
-                <p>Keep the cannon between two balls to hit both at once. The <strong>Force Field</strong> upgrade saves you once per game. Reach level 50 (or 50+25×rebirths) to fight the Final Boss and unlock Rebirth mode for double coins.</p>
+                <p>Balls fly in from either side. Each ball has HP shown on it — shoot it enough times to destroy it. Spend coins earned from kills on upgrades like damage, fire rate, multi-shot, piercing bullets, and more. Boss rounds spawn a giant enemy that slams down at you and sends minion balls!</p>
             </div>
 
             <div class="instr-game">
@@ -517,8 +515,6 @@
                 <p><strong>Move:</strong> Arrow keys or A / D. On mobile, drag the slider at the bottom of the game area.</p>
                 <span class="instr-section-label">How it works</span>
                 <p>Stars and bombs fall from the top of the screen, speeding up over time. Every 25 stars that fall, a <strong>powerup</strong> drops. Powerups include: ❤ extra life, ✨ Star Rush (more stars), 🧯 Calm (fewer bombs), 🛡 Shield (deflects up to 3 bombs), and ↔ Wide (wider paddle). Catching stars also builds your total star count, which unlocks new paddle colors in the main menu.</p>
-                <span class="instr-section-label">Tips</span>
-                <p>Prioritize catching powerups as they fall fast. The Shield is especially useful when bomb frequency ramps up at higher star counts.</p>
             </div>
 
             <div class="instr-game">
@@ -529,11 +525,9 @@
                 <span class="instr-section-label">Goal</span>
                 <p>Survive as long as possible while plummeting down a procedurally generated neon tunnel. Dodge the red wall segments — touching one ends your run.</p>
                 <span class="instr-section-label">Controls</span>
-                <p><strong>Rotate the tunnel:</strong> Click and drag left/right (or touch and swipe) to spin the tunnel around you. Your ship stays fixed at the bottom center — you rotate the world instead.</p>
+                <p><strong>Rotate the tunnel:</strong> Click and drag left/right, press ← / → arrow keys, or touch and swipe. Your ship stays fixed at the bottom center — you rotate the world instead.</p>
                 <span class="instr-section-label">How it works</span>
                 <p>The tunnel rings scroll toward you continuously, getting faster as your distance increases. Obstacle rings have red jagged wall segments that block part of the ring's opening — rotate so the gap lines up with your ship's position (bottom center). Your score increases for every ring you pass through.</p>
-                <span class="instr-section-label">Tips</span>
-                <p>Watch several rings ahead, not just the nearest one. Slow, deliberate rotations are safer than frantic spinning — overshooting is a common way to die.</p>
             </div>
 
             <div class="instr-game">
@@ -547,8 +541,6 @@
                 <p><strong>Flip gravity:</strong> Tap / click anywhere, or press Space. Every flip instantly teleports the ninja to the opposite wall (top or bottom).</p>
                 <span class="instr-section-label">How it works</span>
                 <p>Spikes are attached to either the top or bottom wall. The ninja's running speed increases over time, making spikes come faster and giving you less reaction time. There's no health — one spike hit and it's over. Your distance is tracked in meters and saved as your personal best.</p>
-                <span class="instr-section-label">Tips</span>
-                <p>Don't spam-flip — pick your moment. Since the ninja teleports instead of jumping, flipping at the wrong time can send you straight into a spike on the other wall.</p>
             </div>
         </div>
     </div>
@@ -573,38 +565,31 @@
 
     <script>
         const mobileToggle = document.getElementById('mobile-toggle');
-        const toggleSwitch = document.getElementById('toggle-switch');
-        const mobileOnlyMsg = document.getElementById('mobile-only-msg');
+        const controlsPanel = document.getElementById('controls-panel');
 
-        // Mobile detection
-        function isMobileDevice() {
-            return (('ontouchstart' in window) ||
-                (navigator.maxTouchPoints > 0) ||
-                (navigator.msMaxTouchPoints > 0)) && 
-                window.matchMedia("(max-width: 1024px)").matches;
+        // Restore saved mobile mode state
+        if (localStorage.getItem('globalMobileMode') === 'true') {
+            mobileToggle.checked = true;
         }
 
-        const isMobile = isMobileDevice();
-        if (isMobile) {
-            document.getElementById('controls-panel').style.display = 'flex';
-            const storedMode = localStorage.getItem('globalMobileMode');
-            if (storedMode === 'true') {
+        // Show the mobile mode panel only when an actual touch is detected
+        let touchRevealDone = false;
+        window.addEventListener('touchstart', function revealMobileBtn() {
+            if (touchRevealDone) return;
+            touchRevealDone = true;
+            controlsPanel.style.display = 'flex';
+            // If no preference saved yet, default to enabled on touch devices
+            if (localStorage.getItem('globalMobileMode') === null) {
                 mobileToggle.checked = true;
+                localStorage.setItem('globalMobileMode', 'true');
             }
-        } else {
-            localStorage.setItem('globalMobileMode', 'false');
-            mobileToggle.checked = false;
-        }
+        }, { passive: true });
 
         mobileToggle.addEventListener('change', () => {
-            if (!isMobile) return;
-            console.log('Mobile Mode changed:', mobileToggle.checked);
             localStorage.setItem('globalMobileMode', mobileToggle.checked);
         });
 
-        // Ensure state is saved even on simple clicks if change doesn't fire as expected
         mobileToggle.addEventListener('click', () => {
-            if (!isMobile) return;
             localStorage.setItem('globalMobileMode', mobileToggle.checked);
         });
 

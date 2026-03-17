@@ -202,7 +202,7 @@
         <!-- Menu Overlay -->
         <div id="menu-overlay" class="overlay">
             <h1>Vortex<br>Voyager</h1>
-            <p style="margin-bottom: 2rem; color: #94a3b8; text-align: center; max-width: 80%;">Drag or swipe to rotate while falling. Dodge the blocks and hit the rings!</p>
+            <p style="margin-bottom: 2rem; color: #94a3b8; text-align: center; max-width: 80%;">Drag or swipe to rotate while falling. Use ← → arrow keys or drag to dodge the blocks!</p>
             <button id="start-btn" class="btn">Descent</button>
         </div>
 
@@ -383,6 +383,11 @@
 
             if (!state.running) return;
 
+            // Arrow key rotation
+            const KEY_ROT_SPEED = 0.06;
+            if (state.keys['ArrowLeft'])  state.targetRotation -= KEY_ROT_SPEED * dt;
+            if (state.keys['ArrowRight']) state.targetRotation += KEY_ROT_SPEED * dt;
+
             // Rotation smoothing
             state.rotation += (state.targetRotation - state.rotation) * 0.1 * dt;
             
@@ -534,6 +539,15 @@
         // --- Controls ---
         let lastX = 0;
         let isDragging = false;
+        state.keys = {};
+
+        // Arrow keys
+        window.addEventListener('keydown', e => {
+            state.keys[e.code] = true;
+            // Prevent page scrolling with arrow keys while game is running
+            if (state.running && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) e.preventDefault();
+        });
+        window.addEventListener('keyup', e => { state.keys[e.code] = false; });
 
         function onStart(x) {
             if (!state.running && menuOverlay.classList.contains('hidden')) return;
