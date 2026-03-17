@@ -152,7 +152,7 @@
 
         .hud-top {
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: flex-start;
         }
 
@@ -442,7 +442,7 @@
         const ARENA_SIZE = 50;
         const WEAPONS = {
             AR: { name: 'ASSAULT RIFLE', icon: '🔫', mag: 25, delay: 100, damage: 10, type: 'auto' },
-            SHOTGUN: { name: 'SHOTGUN', icon: '🧹', mag: 5, delay: 800, damage: 5, pellets: 8, spread: 0.1, type: 'semi' }
+            SHOTGUN: { name: 'SHOTGUN', icon: '🧹', mag: 5, delay: 800, damage: 6.25, pellets: 8, spread: 0.1, type: 'semi' }
         };
         const RELOAD_TIME = 1500;
 
@@ -572,6 +572,7 @@
             const headMat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
             const head = new THREE.Mesh(headGeo, headMat);
             head.position.set(0, 1.95, 0);
+            head.name = 'head';
             group.add(head);
 
             // Eyes (Face)
@@ -735,8 +736,10 @@
                     direction.addScaledVector(right, spreadX).addScaledVector(up, spreadY).normalize();
                     
                     raycaster.set(camera.position, direction);
-                    if (raycaster.intersectObject(state.opponent.mesh, true).length > 0) {
-                        hits++;
+                    const intersects = raycaster.intersectObject(state.opponent.mesh, true);
+                    if (intersects.length > 0) {
+                        const isHead = intersects[0].object.name === 'head';
+                        hits += isHead ? 2 : 1;
                     }
                     
                     // Visual Tracers
@@ -750,9 +753,11 @@
             } else {
                 // AR single shot logic
                 raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-                if (raycaster.intersectObject(state.opponent.mesh, true).length > 0) {
+                const intersects = raycaster.intersectObject(state.opponent.mesh, true);
+                if (intersects.length > 0) {
                     showHitmarker();
-                    state.conn.send({ type: 'hit', dmg: weapon.damage });
+                    const isHead = intersects[0].object.name === 'head';
+                    state.conn.send({ type: 'hit', dmg: isHead ? weapon.damage * 2 : weapon.damage });
                 }
                 state.conn.send({ type: 'shot', origin: camera.position, dir: camera.getWorldDirection(new THREE.Vector3()) });
             }
