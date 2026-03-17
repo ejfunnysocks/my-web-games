@@ -1057,6 +1057,11 @@
         if (konamiIndex === konamiSequence.length) {
           state.godMode = !state.godMode;
           konamiIndex = 0;
+          if (state.godMode) {
+            state.coins += 10000;
+            updateUI();
+            saveProgress();
+          }
           showHitText(GAME_W / 2, GAME_H / 2, state.godMode ? "GOD MODE ON" : "GOD MODE OFF", true);
           sfx.play('crit');
         }
