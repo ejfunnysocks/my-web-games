@@ -2070,6 +2070,7 @@
       
       // Run update multiple times per frame for speed multiplier
       for (let s = 0; s < state.gameSpeed; s++) {
+        if (!state.running) break;
         update(timestamp, dt);
       }
       particles.update();
@@ -2079,6 +2080,7 @@
     }
     
     function update(timestamp, dt = 1) {
+      if (!state.running || state.paused) return;
       // Player movement
       const speed = 12 * dt;
       if (state.keys['ArrowLeft'] || state.keys['KeyA']) state.cannonX -= speed;
@@ -2414,6 +2416,11 @@
           b.el.remove();
           state.bullets.splice(i, 1);
         }
+      }
+
+      // Safety Win Check
+      if (!state.isBossLevel && state.ballsDestroyedThisLevel >= state.totalBallsForLevel && state.balls.length === 0) {
+        levelComplete();
       }
     }
     
