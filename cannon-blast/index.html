@@ -2011,7 +2011,7 @@
     
     function performRebirth() {
       state.rebirths += 1;
-      state.coinMultiplier = Math.pow(2, state.rebirths);
+      state.coinMultiplier = state.rebirths + 1;
       
       // Reset progression but keep cosmetics and rebirths
       Object.assign(state, {
@@ -2412,7 +2412,7 @@
       
       sfx.play('explosion');
       particles.spawn(b.x + b.radius, b.y + b.radius, b.color, 15);
-      spawnDrop(b.x + b.radius, b.y + b.radius, Math.ceil(b.maxHp / 2));
+      spawnDrop(b.x + b.radius, b.y + b.radius, b.maxHp);
       
       // Activate powerups
       if (b.type === 'freeze') {
