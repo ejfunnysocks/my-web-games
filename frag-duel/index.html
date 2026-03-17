@@ -1129,9 +1129,9 @@
             if (state.me.kills >= 1) {
                 const label = document.getElementById('unlock-label');
                 if (label) label.classList.add('visible');
+                const minigunLabel = document.getElementById('unlock-label-minigun');
+                if (minigunLabel) minigunLabel.classList.add('visible');
             }
-            const minigunLabel = document.getElementById('unlock-label-minigun');
-            if (minigunLabel) minigunLabel.classList.remove('visible');
             
             controls.lock();
             
@@ -1273,7 +1273,7 @@
                 
                 let available = true;
                 if (nextWeapon === 'ROCKET' && state.me.kills < 1) available = false;
-                if (nextWeapon === 'MINIGUN' && state.me.roundKills < 1) available = false;
+                if (nextWeapon === 'MINIGUN' && state.me.kills < 1) available = false;
                 
                 if (available) {
                     state.me.weapon = nextWeapon;
@@ -1315,13 +1315,15 @@
                 flashUnlock('🚀 ROCKET LAUNCHER UNLOCKED!');
                 const label = document.getElementById('unlock-label');
                 if (label) label.classList.add('visible');
-            }
-            
-            // Minigun round unlock
-            if (state.me.roundKills >= 1) {
-                flashUnlock('🔥 MINIGUN UNLOCKED!');
+                
+                // Show Minigun too since it has same condition
                 const minigunLabel = document.getElementById('unlock-label-minigun');
-                if (minigunLabel) minigunLabel.classList.add('visible');
+                if (minigunLabel) {
+                    if (!minigunLabel.classList.contains('visible')) {
+                        flashUnlock('🔥 MINIGUN UNLOCKED!');
+                        minigunLabel.classList.add('visible');
+                    }
+                }
             }
         }
 
@@ -1589,7 +1591,7 @@
             if (e.code === 'Digit3') { state.me.weapon = 'SMG'; updateWeaponUI(); }
             if (e.code === 'Digit4') { state.me.weapon = 'SNIPER'; updateWeaponUI(); }
             if (e.code === 'Digit5' && state.me.kills >= 1) { state.me.weapon = 'ROCKET'; updateWeaponUI(); }
-            if (e.code === 'Digit6' && state.me.roundKills >= 1) { state.me.weapon = 'MINIGUN'; updateWeaponUI(); }
+            if (e.code === 'Digit6' && state.me.kills >= 1) { state.me.weapon = 'MINIGUN'; updateWeaponUI(); }
         });
 
         window.addEventListener('keyup', e => {
