@@ -1294,7 +1294,7 @@
       container.addEventListener('mousedown', (e) => {
         sfx.init();
         state.isShooting = true;
-        if (state.godMode) {
+        if (state.godMode && !e.target.closest('button')) {
           state.coins += 100000;
           updateUI();
           saveProgress();
@@ -1330,7 +1330,7 @@
         sfx.init();
         e.preventDefault(); 
         state.isShooting = true; 
-        if (state.godMode) {
+        if (state.godMode && !e.target.closest('button')) {
           state.coins += 100000;
           updateUI();
           saveProgress();
