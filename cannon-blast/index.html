@@ -1808,8 +1808,9 @@
         state.drops.push({
             x, y,
             vx: random(-2, 2),
-            vy: random(-4, -2),
-            el
+            vy: random(-6, -3),
+            el,
+            spawnTime: Date.now()
         });
         // Immediately add coins
         state.coins += Math.round(amount * state.coinMultiplier);
@@ -2039,13 +2040,15 @@
       }
       
       // Update drops
+      const now = Date.now();
       for (let i = state.drops.length - 1; i >= 0; i--) {
         const d = state.drops[i];
-        d.vy += GRAVITY * 1.5;
+        d.vy += GRAVITY * 4;
         d.x += d.vx;
         d.y += d.vy;
         
-        if (d.y > FLOOR_Y) {
+        // Remove if hit floor or lived longer than 1 second
+        if (d.y > FLOOR_Y || (now - d.spawnTime) > 1000) {
             d.el.remove();
             state.drops.splice(i, 1);
         }
