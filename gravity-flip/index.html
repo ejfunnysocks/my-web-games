@@ -19,8 +19,9 @@
             font-family: 'Outfit', sans-serif;
             background-color: var(--bg);
             color: white;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            overflow-y: auto;
+            padding: 40px 0;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -444,7 +445,7 @@
             return { x, y, w, h, isTop, id: Date.now() };
         }
 
-        function update(dt) {
+        function update(dt, rawDt) {
             if (!state.running) return;
 
             // Player Physics
@@ -491,11 +492,16 @@
             // Obstacle Spawning (Fair & Scaling)
             state.obstacleTimer -= rawDt;
             if (state.obstacleTimer <= 0) {
-               // Progression
-            state.speed = Math.min(MAX_SPEED, 6 + (state.score * 0.03)); // Slower speed scaling
-            const spawnRate = 120; // Constant spawn rate, relies on speed for difficulty
-            state.obstacles.push(createObstacle(width + 100));
-            state.obstacleTimer = (spawnRate / state.speed) * 16.6; // Based on frame time
+                // Progression
+                state.speed = Math.min(MAX_SPEED, 6 + (state.score * 0.03)); // Slower speed scaling
+                
+                // Enforce MIN_GAP between obstacles
+                const lastObs = state.obstacles[state.obstacles.length - 1];
+                if (!lastObs || (width + 100 - lastObs.x) >= MIN_GAP) {
+                    state.obstacles.push(createObstacle(width + 100));
+                    const spawnRate = 120;
+                    state.obstacleTimer = (spawnRate / state.speed) * 16.6; 
+                }
             }
 
             scoreEl.textContent = `Distance: ${Math.floor(state.score)}m`;
@@ -677,7 +683,7 @@
             state.lastTime = timestamp;
             const dt = Math.min(rawDt / 16.67, 2.0); // normalize to 60fps, cap at 2x
             
-            update(dt);
+            update(dt, rawDt);
             draw();
             requestAnimationFrame(gameLoop);
         }

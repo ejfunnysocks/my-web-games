@@ -19,8 +19,9 @@
             font-family: 'Outfit', sans-serif;
             background-color: var(--bg);
             color: white;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            overflow-y: auto;
+            padding: 40px 0;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -179,6 +180,20 @@
             transform-origin: right bottom;
             white-space: nowrap;
         }
+        
+        #player-marker {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            background: #fff;
+            border-radius: 50%;
+            bottom: 60px; /* Adjust via JS */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            box-shadow: 0 0 30px #6366f1;
+            pointer-events: none;
+        }
 
         /* Speed Lines VFX */
         #vfx-overlay {
@@ -308,6 +323,7 @@
                 <p>The tunnel rings scroll toward you continuously, getting faster as your distance increases. Obstacle rings have red jagged wall segments that block part of the ring's opening — rotate so the gap lines up with your ship's position (bottom center). Your score increases for every ring you pass through.</p>
             </div>
         </div>
+        <div id="player-marker"></div>
         <div id="pause-overlay">
             <h2>PAUSED</h2>
             <button class="pause-btn" id="resume-btn">Resume</button>
@@ -340,9 +356,14 @@
         const vfxOverlay = document.getElementById('vfx-overlay');
 
         let width, height;
+        const playerMarker = document.getElementById('player-marker');
         function resize() {
             width = canvas.width = canvas.offsetWidth;
             height = canvas.height = canvas.offsetHeight;
+            // Update player marker Y to match ring radius 400 at width 500
+            const ringRadiusAtEdge = (width / 2) * 2.0; // matches scale in draw 
+            // Better: just fix it to a good looking spot and make collision match
+            playerMarker.style.bottom = '80px';
         }
         window.addEventListener('resize', resize);
         resize();
@@ -516,10 +537,12 @@
                         const relAngle = ((obs.angle + state.rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
                         const playerAngle = Math.PI / 2; // Bottom center
                         
+                        // Improved collision: check player width
+                        const playerAngularWidth = 0.15; // Approximate angular width of ball
                         const diff = Math.abs(relAngle - playerAngle);
                         const normalizedDiff = Math.min(diff, Math.PI * 2 - diff);
                         
-                        if (normalizedDiff < obs.width / 2) {
+                        if (normalizedDiff < (obs.width / 2 + playerAngularWidth)) {
                             if (obs.type === 'wall') {
                                 endGame();
                             } else if (obs.type === 'ring') {
@@ -627,13 +650,7 @@
                 });
             }
 
-            // Draw Player Marker (Moved even lower)
-            ctx.shadowBlur = 30;
-            ctx.shadowColor = '#6366f1';
-            ctx.fillStyle = '#fff';
-            ctx.beginPath();
-            ctx.arc(centerX, height - 60, 14, 0, Math.PI * 2);
-            ctx.fill();
+            // The actual player is now a DOM element for better glow effects
             ctx.shadowBlur = 0;
 
             particles.draw();

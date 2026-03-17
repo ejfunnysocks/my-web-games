@@ -226,12 +226,13 @@
             z-index: 200;
         }
 
-        #crosshair.ar {
+        #crosshair.ar, #crosshair.smg {
             width: 20px;
             height: 20px;
         }
 
-        #crosshair.ar::before, #crosshair.ar::after {
+        #crosshair.ar::before, #crosshair.ar::after,
+        #crosshair.smg::before, #crosshair.smg::after {
             content: '';
             position: absolute;
             background: rgba(255, 255, 255, 0.8);
@@ -240,6 +241,9 @@
 
         #crosshair.ar::before { width: 2px; height: 100%; left: 9px; top: 0; }
         #crosshair.ar::after { height: 2px; width: 100%; top: 9px; left: 0; }
+
+        #crosshair.smg::before { width: 2px; height: 60%; left: 9px; top: 20%; }
+        #crosshair.smg::after { height: 2px; width: 60%; top: 9px; left: 20%; }
 
         #crosshair.shotgun {
             width: 40px;
@@ -259,6 +263,22 @@
             background: white;
             border-radius: 50%;
         }
+
+        #crosshair.sniper {
+            width: 60px;
+            height: 60px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+        }
+
+        #crosshair.sniper::before, #crosshair.sniper::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        #crosshair.sniper::before { width: 1px; height: 100%; left: 50%; top: 0; }
+        #crosshair.sniper::after { height: 1px; width: 100%; top: 50%; left: 0; }
 
         /* --- Custom Styles --- */
         .room-info {
@@ -365,6 +385,33 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* --- ADS / Sniper Scope --- */
+        #sniper-scope {
+            position: absolute;
+            inset: 0;
+            background: 
+                radial-gradient(circle at center, transparent 30%, black 70%),
+                rgba(0,0,0,0.4);
+            display: none;
+            z-index: 150;
+            pointer-events: none;
+        }
+
+        #sniper-scope::before, #sniper-scope::after {
+            content: '';
+            position: absolute;
+            background: rgba(255,255,255,0.5);
+        }
+        #sniper-scope::before { width: 1px; height: 100%; left: 50%; }
+        #sniper-scope::after { height: 1px; width: 100%; top: 50%; }
+
+        .ads-active #crosshair {
+            transform: translate(-50%, -50%) scale(0.6);
+        }
+        .ads-active #crosshair.sniper {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -446,6 +493,7 @@
         </div>
     </div>
 
+    <div id="sniper-scope"></div>
     <div id="crosshair" class="hidden"></div>
     <div id="canvas-container"></div>
 
@@ -471,9 +519,12 @@
         const GRAVITY = 0.008;
         const JUMP_FORCE = 0.35;
         const ARENA_SIZE = 50;
+        const FOV_NORMAL = 75;
         const WEAPONS = {
-            AR: { name: 'ASSAULT RIFLE', icon: '🔫', mag: 25, delay: 100, damage: 10, type: 'auto' },
-            SHOTGUN: { name: 'SHOTGUN', icon: '🧹', mag: 5, delay: 800, damage: 6.25, pellets: 8, spread: 0.1, type: 'semi' }
+            AR: { name: 'ASSAULT RIFLE', icon: '🔫', mag: 25, delay: 100, damage: 10, type: 'auto', zoom: 50 },
+            SHOTGUN: { name: 'SHOTGUN', icon: '🧹', mag: 5, delay: 800, damage: 6.25, pellets: 8, spread: 0.1, type: 'semi', zoom: 65 },
+            SMG: { name: 'SMG', icon: '💨', mag: 30, delay: 60, damage: 7, type: 'auto', zoom: 60 },
+            SNIPER: { name: 'SNIPER RIFLE', icon: '🎯', mag: 5, delay: 1200, damage: 60, type: 'semi', zoom: 20 }
         };
         const RELOAD_TIME = 1500;
 
@@ -494,8 +545,10 @@
                 onGround: false,
                 lastShot: 0,
                 weapon: 'AR',
-                ammo: { AR: 25, SHOTGUN: 5 },
-                reloading: false
+                ammo: { AR: 25, SHOTGUN: 5, SMG: 30, SNIPER: 5 },
+                reloading: false,
+                isAds: false,
+                currentFov: FOV_NORMAL
             },
             opponent: {
                 id: null,
@@ -772,9 +825,15 @@
             });
 
             state.peer.on('error', (err) => {
+                console.error("Matchmaker Host Error:", err);
                 if (err.type === 'unavailable-id') {
                     // Lobby busy, join as guest
                     connectToLobby();
+                } else {
+                    state.isMatchmaking = false;
+                    btn.textContent = "⚡ Quick Match";
+                    btn.disabled = false;
+                    initPeer();
                 }
             });
         }
@@ -786,14 +845,22 @@
             state.peer = new Peer(PEER_CONFIG);
             state.peer.on('open', (id) => {
                 state.id = id;
+                console.log("Connecting to Lobby Host...");
                 const conn = state.peer.connect(LOBBY_ID);
                 setupConnection(conn);
                 state.isHost = false;
                 state.isMatchmaking = false;
                 
                 conn.on('open', () => {
+                    console.log("Connected to Matchmaking Lobby!");
                     document.getElementById('quick-match-btn').textContent = "Match Found!";
-                    // We wait for the host to send the 'start' message
+                });
+
+                conn.on('error', (err) => {
+                    console.error("Matchmaking Connection Error:", err);
+                    state.isMatchmaking = false;
+                    document.getElementById('quick-match-btn').textContent = "⚡ Quick Match";
+                    document.getElementById('quick-match-btn').disabled = false;
                 });
             });
             
@@ -903,6 +970,8 @@
             state.opponent.hp = 100;
             state.me.ammo.AR = WEAPONS.AR.mag;
             state.me.ammo.SHOTGUN = WEAPONS.SHOTGUN.mag;
+            state.me.ammo.SMG = WEAPONS.SMG.mag;
+            state.me.ammo.SNIPER = WEAPONS.SNIPER.mag;
             state.me.reloading = false;
             state.me.weapon = 'AR';
             updateHPUI();
@@ -915,7 +984,11 @@
             state.opponent.hasData = false;
             
             if(state.isHost) {
-                state.conn.send({ type: 'start', seed: seed });
+                if (state.conn && state.conn.open) {
+                    state.conn.send({ type: 'start', seed: seed });
+                } else {
+                    console.error("Failed to send start message: Connection not open");
+                }
             }
         }
 
@@ -1008,7 +1081,7 @@
 
             // Update crosshair class
             const crosshair = document.getElementById('crosshair');
-            crosshair.className = state.me.weapon === 'AR' ? 'ar' : 'shotgun';
+            crosshair.className = state.me.weapon.toLowerCase();
         }
 
         function switchWeapon(dir) {
@@ -1164,9 +1237,24 @@
 
                 // Update weapon visual
                 if (state.opponent.parts.weapon) {
-                    const isShotgun = state.opponent.weapon === 'SHOTGUN';
-                    state.opponent.parts.weapon.scale.set(isShotgun ? 1.5 : 1, 1, isShotgun ? 0.8 : 1);
-                    state.opponent.parts.weapon.material.color.setHex(isShotgun ? 0x64748b : 0x334155);
+                    const w = state.opponent.weapon;
+                    const isShotgun = w === 'SHOTGUN';
+                    const isSniper = w === 'SNIPER';
+                    const isSMG = w === 'SMG';
+                    
+                    if (isShotgun) {
+                        state.opponent.parts.weapon.scale.set(1.5, 1, 0.8);
+                        state.opponent.parts.weapon.material.color.setHex(0x64748b);
+                    } else if (isSniper) {
+                        state.opponent.parts.weapon.scale.set(0.8, 0.8, 1.8);
+                        state.opponent.parts.weapon.material.color.setHex(0x1e293b);
+                    } else if (isSMG) {
+                        state.opponent.parts.weapon.scale.set(1, 0.8, 0.6);
+                        state.opponent.parts.weapon.material.color.setHex(0x475569);
+                    } else { // AR
+                        state.opponent.parts.weapon.scale.set(1, 1, 1);
+                        state.opponent.parts.weapon.material.color.setHex(0x334155);
+                    }
                 }
             }
 
@@ -1182,6 +1270,26 @@
                     state.bullets.splice(i, 1);
                 }
             }
+
+            // Update FOV (ADS)
+            const targetFov = state.me.isAds ? WEAPONS[state.me.weapon].zoom : FOV_NORMAL;
+            state.me.currentFov = THREE.MathUtils.lerp(state.me.currentFov, targetFov, 0.15);
+            if (camera.fov !== state.me.currentFov) {
+                camera.fov = state.me.currentFov;
+                camera.updateProjectionMatrix();
+            }
+
+            // Sniper Scope Overlay
+            const scope = document.getElementById('sniper-scope');
+            if (state.me.isAds && state.me.weapon === 'SNIPER') {
+                scope.style.display = 'block';
+            } else {
+                scope.style.display = 'none';
+            }
+
+            // Crosshair scale class
+            if (state.me.isAds) document.body.classList.add('ads-active');
+            else document.body.classList.remove('ads-active');
 
             // Networking Output (Throttled to ~30 TPS to avoid flooding WebRTC)
             const now = Date.now();
@@ -1223,6 +1331,8 @@
             if (e.code === 'KeyR') reload();
             if (e.code === 'Digit1') { state.me.weapon = 'AR'; updateWeaponUI(); }
             if (e.code === 'Digit2') { state.me.weapon = 'SHOTGUN'; updateWeaponUI(); }
+            if (e.code === 'Digit3') { state.me.weapon = 'SMG'; updateWeaponUI(); }
+            if (e.code === 'Digit4') { state.me.weapon = 'SNIPER'; updateWeaponUI(); }
         });
 
         window.addEventListener('keyup', e => {
@@ -1234,16 +1344,23 @@
             switchWeapon(e.deltaY > 0 ? 1 : -1);
         });
         
-        window.addEventListener('mousedown', () => {
+        window.addEventListener('mousedown', (e) => {
             if (state.running) {
                 if (!controls.isLocked) {
                     controls.lock();
                 } else {
-                    state.isShooting = true;
+                    if (e.button === 0) state.isShooting = true;
+                    if (e.button === 2) state.me.isAds = true;
                 }
             }
         });
-        window.addEventListener('mouseup', () => state.isShooting = false);
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 0) state.isShooting = false;
+            if (e.button === 2) state.me.isAds = false;
+        });
+
+        // Disable context menu for right-click ADS
+        window.addEventListener('contextmenu', e => e.preventDefault());
 
         document.getElementById('join-btn').addEventListener('click', () => {
             const id = document.getElementById('join-id-input').value.trim();

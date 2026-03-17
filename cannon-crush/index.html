@@ -17,7 +17,8 @@
       justify-content: center;
       font-family: 'Outfit', sans-serif;
       color: #fff;
-      overflow: hidden;
+      overflow-y: auto;
+      padding: 40px 0;
       opacity: 0;
       animation: fadeIn 0.8s ease forwards;
     }
@@ -1034,12 +1035,12 @@
       equippedBackground: 'bg-mountains',
       
       // Advanced Upgrades
-      multiShotLvl: 1, // 1 = 1 bullet, 2 = 2 bullets, etc (max 3)
-      multiShotCost: 2000,
-      bulletSizeLvl: 1, // scales bullet size
-      bulletSizeCost: 2000,
-      projSpeedLvl: 1, // scales bullet speed
-      projSpeedCost: 2000,
+      multiShotLvl: 0, // 0 = 1 bullet, 1 = 2 bullets, etc
+      multiShotCost: 1000,
+      bulletSizeLvl: 0, // scales bullet size
+      bulletSizeCost: 1000,
+      projSpeedLvl: 0, // scales bullet speed
+      projSpeedCost: 1000,
       shockwaveLvl: 0, // 1 = every 10th shot explosive
       shockwaveCost: 1000,
       shotCounter: 0,
@@ -1835,9 +1836,9 @@
           critCost: 15,
           
           // Advanced
-          multiShotLvl: 1, multiShotCost: 2000,
-          bulletSizeLvl: 1, bulletSizeCost: 2000,
-          projSpeedLvl: 1, projSpeedCost: 2000,
+          multiShotLvl: 0, multiShotCost: 1000,
+          bulletSizeLvl: 0, bulletSizeCost: 1000,
+          projSpeedLvl: 0, projSpeedCost: 1000,
           shockwaveLvl: 0, shockwaveCost: 1000,
           pierceLvl: 0, pierceCost: 1000,
           forceFieldLvl: 0, forceFieldCost: 3000,
@@ -2077,9 +2078,9 @@
         critChance: 2,
         critLvl: 1,
         critCost: 15,
-        multiShotLvl: 1, multiShotCost: 2000,
-        bulletSizeLvl: 1, bulletSizeCost: 2000,
-        projSpeedLvl: 1, projSpeedCost: 2000,
+        multiShotLvl: 0, multiShotCost: 1000,
+        bulletSizeLvl: 0, bulletSizeCost: 1000,
+        projSpeedLvl: 0, projSpeedCost: 1000,
         shockwaveLvl: 0, shockwaveCost: 1000,
         pierceLvl: 0, pierceCost: 1000,
         forceFieldLvl: 0, forceFieldCost: 3000,
@@ -2517,7 +2518,7 @@
     }
     
     function shoot() {
-      const bulletCount = state.multiShotLvl;
+      const bulletCount = state.multiShotLvl + 1;
       const spacing = 15;
       
       for (let i = 0; i < bulletCount; i++) {
@@ -2533,10 +2534,10 @@
         
         // Projectile Speed
         const baseSpeed = 10;
-        const projSpeed = baseSpeed + (state.projSpeedLvl - 1) * 3;
+        const projSpeed = baseSpeed + (state.projSpeedLvl) * 3;
         
         // Bullet Size
-        const sizeScale = 1 + (state.bulletSizeLvl - 1) * 0.2;
+        const sizeScale = 1 + (state.bulletSizeLvl) * 0.2;
         el.style.transform = `scale(${sizeScale})`;
         
         // Shockwave Generator
