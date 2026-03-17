@@ -222,20 +222,43 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 200;
+        }
+
+        #crosshair.ar {
             width: 20px;
             height: 20px;
-            pointer-events: none;
         }
 
-        #crosshair::before, #crosshair::after {
+        #crosshair.ar::before, #crosshair.ar::after {
             content: '';
             position: absolute;
-            background: white;
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 2px black;
         }
 
-        #crosshair::before { width: 2px; height: 100%; left: 9px; top: 0; }
-        #crosshair::after { height: 2px; width: 100%; top: 9px; left: 0; }
+        #crosshair.ar::before { width: 2px; height: 100%; left: 9px; top: 0; }
+        #crosshair.ar::after { height: 2px; width: 100%; top: 9px; left: 0; }
+
+        #crosshair.shotgun {
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        #crosshair.shotgun::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+        }
 
         /* --- Custom Styles --- */
         .room-info {
@@ -410,7 +433,7 @@
         <div class="hud-bottom">
             <div id="reload-msg" style="color: #ef4444; font-weight: 800; display: none; margin-bottom: 10px;">RELOADING...</div>
             <div style="color: #64748b; font-size: 12px; display: flex; gap: 20px;">
-                <span>WASD: Move | CLICK: Shoot | SPACE: Jump | R: Reload | SCROLL: Switch | F: Lock Mouse</span>
+                <span>WASD: Move | CLICK: Shoot | SPACE: Jump | R: Reload | SCROLL: Switch | CLICK TO RELOCK</span>
             </div>
         </div>
     </div>
@@ -470,12 +493,11 @@
                 pos: new THREE.Vector3(0, -100, 0), // hide initially
                 rot: new THREE.Euler(),
                 mesh: null,
-                hp: 100,
-                ammo: 25,
-                reloading: false
+                hp: 100
             },
             keys: {},
-            obstacles: []
+            obstacles: [],
+            bullets: []
         };
 
         // --- Three.js Setup ---
@@ -656,19 +678,23 @@
         }
 
         function handleIncomingShot(origin, dir) {
-            // Visual for opponent tracers
-            const tracerGeo = new THREE.BufferGeometry().setFromPoints([
-                new THREE.Vector3().copy(origin),
-                new THREE.Vector3().copy(origin).add(new THREE.Vector3().copy(dir).multiplyScalar(100))
-            ]);
-            const tracerMat = new THREE.LineBasicMaterial({ color: 0xf43f5e, transparent: true, opacity: 0.5 });
-            const line = new THREE.Line(tracerGeo, tracerMat);
-            scene.add(line);
-            setTimeout(() => {
-                scene.remove(line);
-                tracerGeo.dispose();
-                tracerMat.dispose();
-            }, 50);
+            spawnBullet(new THREE.Vector3().copy(origin), new THREE.Vector3().copy(dir));
+        }
+
+        function spawnBullet(origin, dir) {
+            const bulletGeo = new THREE.SphereGeometry(0.08, 8, 8);
+            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffa500 });
+            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+            
+            bullet.position.copy(origin);
+            scene.add(bullet);
+            
+            state.bullets.push({
+                mesh: bullet,
+                dir: dir.clone().normalize(),
+                speed: 1.5,
+                life: 60 // frames
+            });
         }
 
         // --- Gameplay ---
@@ -743,6 +769,7 @@
                     }
                     
                     // Visual Tracers
+                    spawnBullet(camera.position, direction);
                     state.conn.send({ type: 'shot', origin: camera.position, dir: direction });
                 }
 
@@ -759,7 +786,9 @@
                     const isHead = intersects[0].object.name === 'head';
                     state.conn.send({ type: 'hit', dmg: isHead ? weapon.damage * 2 : weapon.damage });
                 }
-                state.conn.send({ type: 'shot', origin: camera.position, dir: camera.getWorldDirection(new THREE.Vector3()) });
+                const direction = camera.getWorldDirection(new THREE.Vector3());
+                spawnBullet(camera.position, direction);
+                state.conn.send({ type: 'shot', origin: camera.position, dir: direction });
             }
         }
 
@@ -782,6 +811,10 @@
             document.getElementById('weapon-icon').textContent = weapon.icon;
             document.getElementById('weapon-name').textContent = weapon.name;
             document.getElementById('ammo-display').textContent = `${state.me.ammo[state.me.weapon]} / ∞`;
+
+            // Update crosshair class
+            const crosshair = document.getElementById('crosshair');
+            crosshair.className = state.me.weapon === 'AR' ? 'ar' : 'shotgun';
         }
 
         function switchWeapon(dir) {
@@ -920,6 +953,19 @@
                 state.opponent.mesh.rotation.y = state.opponent.rot.y;
             }
 
+            // Update Bullets
+            for (let i = state.bullets.length - 1; i >= 0; i--) {
+                const b = state.bullets[i];
+                b.mesh.position.addScaledVector(b.dir, b.speed);
+                b.life--;
+                if (b.life <= 0) {
+                    scene.remove(b.mesh);
+                    b.mesh.geometry.dispose();
+                    b.mesh.material.dispose();
+                    state.bullets.splice(i, 1);
+                }
+            }
+
             // Networking Output
             if (state.conn && state.conn.open) {
                 state.conn.send({
@@ -957,7 +1003,6 @@
             if (e.code === 'KeyR') reload();
             if (e.code === 'Digit1') { state.me.weapon = 'AR'; updateWeaponUI(); }
             if (e.code === 'Digit2') { state.me.weapon = 'SHOTGUN'; updateWeaponUI(); }
-            if (e.code === 'KeyF') controls.lock();
         });
 
         window.addEventListener('keyup', e => {
@@ -970,7 +1015,13 @@
         });
         
         window.addEventListener('mousedown', () => {
-            if (state.running) state.isShooting = true;
+            if (state.running) {
+                if (!controls.isLocked) {
+                    controls.lock();
+                } else {
+                    state.isShooting = true;
+                }
+            }
         });
         window.addEventListener('mouseup', () => state.isShooting = false);
 
