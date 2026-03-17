@@ -829,6 +829,32 @@
     #antilag-btn::before {
       content: '⚙️';
     }
+    .debug-btn {
+      position: absolute;
+      left: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 16px 24px;
+      font-weight: 800;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.4);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 1001;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .debug-btn:hover {
+      transform: translateY(-50%) scale(1.1);
+      box-shadow: 0 20px 25px -5px rgba(245, 158, 11, 0.5);
+    }
+    .debug-btn:active {
+      transform: translateY(-50%) scale(0.95);
+    }
     </style>
     </style>
 </head>
@@ -886,6 +912,7 @@
     </div>
     
     <div id="main-menu" class="screen-overlay">
+      <button id="skip-debug-btn" class="debug-btn" style="display: none;">⏩ SKIP LEVEL</button>
       <h2>Cannon Crush</h2>
       
       <div id="upgrades-panel">
@@ -1057,6 +1084,8 @@
         if (konamiIndex === konamiSequence.length) {
           state.godMode = !state.godMode;
           konamiIndex = 0;
+          const skipBtn = document.getElementById('skip-debug-btn');
+          if (skipBtn) skipBtn.style.display = (state.godMode && mainMenuScreen.style.display !== 'none') ? 'block' : 'none';
           showHitText(GAME_W / 2, GAME_H / 2, state.godMode ? "GOD MODE ON" : "GOD MODE OFF", true);
           sfx.play('crit');
         }
@@ -1385,6 +1414,13 @@
         btn.classList.toggle('active', state.lowGraphics);
         applyBackground(); // Refresh background
       });
+
+      document.getElementById('skip-debug-btn').addEventListener('click', () => {
+        if (state.godMode) {
+          mainMenuScreen.style.display = 'none';
+          levelComplete();
+        }
+      });
     }
     
     function showMenu() {
@@ -1397,6 +1433,10 @@
       shopScreen.style.display = 'none';
       levelProgressContainer.style.display = 'none';
       document.getElementById('rebirth-screen').style.display = 'none';
+      
+      const skipBtn = document.getElementById('skip-debug-btn');
+      if (skipBtn) skipBtn.style.display = state.godMode ? 'block' : 'none';
+      
       loadProgress();
       updateRebirthBadge();
       if (state.level > 1) {
