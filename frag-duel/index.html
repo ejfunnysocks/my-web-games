@@ -252,6 +252,13 @@
             background: rgba(255, 255, 255, 0.05);
         }
 
+        #crosshair.hovering::before, #crosshair.hovering::after {
+            background: #f43f5e !important;
+        }
+        #crosshair.hovering {
+            border-color: #f43f5e !important;
+        }
+
         #crosshair.shotgun::before {
             content: '';
             position: absolute;
@@ -412,6 +419,25 @@
         .ads-active #crosshair.sniper {
             display: none;
         }
+
+        #unlock-label {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #fbbf24;
+            font-size: 14px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #unlock-label.visible { opacity: 1; }
     </style>
 </head>
 <body>
@@ -491,6 +517,7 @@
                 <span>WASD: Move | CLICK: Shoot | SPACE: Jump | R: Reload | SCROLL: Switch | CLICK TO RELOCK</span>
             </div>
         </div>
+        <div id="unlock-label">rocket launcher unlocked</div>
     </div>
 
     <div id="sniper-scope"></div>
@@ -523,8 +550,9 @@
         const WEAPONS = {
             AR: { name: 'ASSAULT RIFLE', icon: '🔫', mag: 25, delay: 100, damage: 10, type: 'auto', zoom: 50 },
             SHOTGUN: { name: 'SHOTGUN', icon: '🧹', mag: 5, delay: 800, damage: 6.25, pellets: 8, spread: 0.1, type: 'semi', zoom: 65 },
-            SMG: { name: 'SMG', icon: '💨', mag: 30, delay: 60, damage: 7, type: 'auto', zoom: 60 },
-            SNIPER: { name: 'SNIPER RIFLE', icon: '🎯', mag: 5, delay: 1200, damage: 60, type: 'semi', zoom: 20 }
+            SMG: { name: 'SMG', icon: '💨', mag: 45, delay: 60, damage: 7, type: 'auto', zoom: 60 },
+            SNIPER: { name: 'SNIPER RIFLE', icon: '🎯', mag: 5, delay: 1200, damage: 60, type: 'semi', zoom: 20 },
+            ROCKET: { name: 'ROCKET LAUNCHER', icon: '🚀', mag: 1, delay: 2000, damage: 50, radius: 5, type: 'semi', zoom: 60 }
         };
         const RELOAD_TIME = 1500;
 
@@ -545,7 +573,8 @@
                 onGround: false,
                 lastShot: 0,
                 weapon: 'AR',
-                ammo: { AR: 25, SHOTGUN: 5, SMG: 30, SNIPER: 5 },
+                ammo: { AR: 25, SHOTGUN: 5, SMG: 30, SNIPER: 5, ROCKET: 1 },
+                kills: parseInt(localStorage.getItem('frag_duel_kills')) || 0,
                 reloading: false,
                 isAds: false,
                 currentFov: FOV_NORMAL
@@ -902,6 +931,10 @@
                     state.opponent.weapon = data.weapon;
                 } else if (data.type === 'shot') {
                     handleIncomingShot(data.origin, data.dir);
+                } else if (data.type === 'shot_rocket') {
+                    spawnRocket(new THREE.Vector3(data.origin.x, data.origin.y, data.origin.z), new THREE.Vector3(data.dir.x, data.dir.y, data.dir.z), false);
+                } else if (data.type === 'explode') {
+                    explode(new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z), data.damage, data.radius, false);
                 } else if (data.type === 'hit') {
                     takeDamage(data.dmg);
                 }
@@ -923,6 +956,40 @@
             });
         }
 
+        function explode(pos, damage, radius, ownerId) {
+            // Visual explosion
+            const blastGeo = new THREE.SphereGeometry(radius, 16, 16);
+            const blastMat = new THREE.MeshBasicMaterial({ color: 0xff4500, transparent: true, opacity: 0.5 });
+            const blast = new THREE.Mesh(blastGeo, blastMat);
+            blast.position.copy(pos);
+            scene.add(blast);
+            setTimeout(() => {
+                scene.remove(blast);
+                blast.geometry.dispose();
+                blast.material.dispose();
+            }, 200);
+
+            // Damage logic
+            const distToMe = state.me.pos.distanceTo(pos);
+            if (distToMe < radius) {
+                const falloff = 1 - (distToMe / radius);
+                takeDamage(damage * falloff);
+            }
+
+            const distToOpponent = state.opponent.pos.distanceTo(pos);
+            if (ownerId === true && state.connected && distToOpponent < radius) { // Only sender calculates opponent damage
+                const falloff = 1 - (distToOpponent / radius);
+                const finalDmg = damage * falloff;
+                state.conn.send({ type: 'hit', dmg: finalDmg });
+                showHitmarker();
+            }
+
+            // Synchronize visual for opponent if we are the one who triggered it
+            if (ownerId === true && state.connected) {
+                state.conn.send({ type: 'explode', pos: pos, damage: damage, radius: radius });
+            }
+        }
+
         function handleIncomingShot(origin, dir) {
             const o = new THREE.Vector3(origin.x, origin.y, origin.z);
             const d = new THREE.Vector3(dir.x, dir.y, dir.z);
@@ -941,7 +1008,27 @@
                 mesh: bullet,
                 dir: dir.clone().normalize(),
                 speed: 1.2,
-                life: 100 // frames
+                life: 100, // frames
+                type: 'bullet'
+            });
+        }
+
+        function spawnRocket(origin, dir, isMe) {
+            const rocketGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 8);
+            rocketGeo.rotateX(Math.PI / 2);
+            const rocketMat = new THREE.MeshPhongMaterial({ color: 0x64748b });
+            const rocket = new THREE.Mesh(rocketGeo, rocketMat);
+            rocket.position.copy(origin);
+            rocket.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+            scene.add(rocket);
+
+            state.bullets.push({
+                mesh: rocket,
+                dir: dir.clone().normalize(),
+                speed: 0.6,
+                life: 200,
+                type: 'rocket',
+                isMe: isMe
             });
         }
 
@@ -977,6 +1064,11 @@
             updateHPUI();
             updateWeaponUI();
             
+            if (state.me.kills >= 1) {
+                const label = document.getElementById('unlock-label');
+                if (label) label.classList.add('visible');
+            }
+            
             controls.lock();
             
             // Show opponent mesh now that match starts
@@ -1007,13 +1099,14 @@
             state.me.ammo[state.me.weapon]--;
             updateWeaponUI();
 
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+
             // Muzzle flash / Trace
             const flash = new THREE.PointLight(0xfffc00, 0.5, 2);
             flash.position.copy(camera.position).add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(0.5));
             scene.add(flash);
             setTimeout(() => scene.remove(flash), 20);
-
-            const raycaster = new THREE.Raycaster();
             
             if (state.me.weapon === 'SHOTGUN') {
                 // Multi-pellet logic
@@ -1044,6 +1137,20 @@
                     showHitmarker();
                     state.conn.send({ type: 'hit', dmg: hits * weapon.damage });
                 }
+                spawnBullet(camera.position, direction);
+                state.conn.send({ type: 'shot', origin: camera.position, dir: direction });
+            } else if (state.me.weapon === 'ROCKET') {
+                const intersects = raycaster.intersectObjects([...state.obstacles, state.opponent.mesh], true);
+                let hitPoint = camera.position.clone().add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(100));
+                if (intersects.length > 0) {
+                    hitPoint = intersects[0].point;
+                }
+                explode(hitPoint, WEAPONS.ROCKET.damage, WEAPONS.ROCKET.radius, true);
+                
+                // Visual Effect (Instant Tracer)
+                const direction = camera.getWorldDirection(new THREE.Vector3());
+                spawnBullet(camera.position, direction); // Use normal faster bullet for visual
+                state.conn.send({ type: 'shot', origin: camera.position, dir: direction });
             } else {
                 // AR single shot logic
                 raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
@@ -1112,6 +1219,32 @@
             }
         }
 
+        function recordKill() {
+            state.me.kills++;
+            localStorage.setItem('frag_duel_kills', state.me.kills);
+            // Trigger persistent label
+            if (state.me.kills >= 1) {
+                const label = document.getElementById('unlock-label');
+                if (label) label.classList.add('visible');
+            }
+            
+            // Flash unlock message if first kill
+            if (state.me.kills === 1) {
+                const msg = document.createElement('div');
+                msg.style.position = 'fixed';
+                msg.style.top = '20%';
+                msg.style.left = '50%';
+                msg.style.transform = 'translate(-50%, -50%)';
+                msg.style.color = '#fbbf24';
+                msg.style.fontSize = '2rem';
+                msg.style.fontWeight = '900';
+                msg.style.zIndex = '1000';
+                msg.textContent = '🚀 ROCKET LAUNCHER UNLOCKED!';
+                document.body.appendChild(msg);
+                setTimeout(() => msg.remove(), 3000);
+            }
+        }
+
         function updateHPUI() {
             document.getElementById('hp-fill').style.width = Math.max(0, state.hp) + '%';
         }
@@ -1119,6 +1252,8 @@
         function endMatch(victory) {
             state.running = false;
             controls.unlock();
+            
+            if (victory) recordKill();
             
             document.getElementById('hud').classList.add('hidden');
             document.getElementById('crosshair').classList.add('hidden');
@@ -1251,6 +1386,9 @@
                     } else if (isSMG) {
                         state.opponent.parts.weapon.scale.set(1, 0.8, 0.6);
                         state.opponent.parts.weapon.material.color.setHex(0x475569);
+                    } else if (w === 'ROCKET') {
+                        state.opponent.parts.weapon.scale.set(1.2, 1.2, 2.0);
+                        state.opponent.parts.weapon.material.color.setHex(0x064e3b);
                     } else { // AR
                         state.opponent.parts.weapon.scale.set(1, 1, 1);
                         state.opponent.parts.weapon.material.color.setHex(0x334155);
@@ -1263,7 +1401,19 @@
                 const b = state.bullets[i];
                 b.mesh.position.addScaledVector(b.dir, b.speed);
                 b.life--;
-                if (b.life <= 0) {
+
+                let hit = false;
+                if (b.type === 'rocket') {
+                    // Rocket collision with world
+                    const ray = new THREE.Raycaster(b.mesh.position, b.dir, 0, b.speed + 0.1);
+                    const worldHits = ray.intersectObjects(state.obstacles);
+                    if (worldHits.length > 0) {
+                        explode(worldHits[0].point, WEAPONS.ROCKET.damage, WEAPONS.ROCKET.radius, b.isMe);
+                        hit = true;
+                    }
+                }
+
+                if (b.life <= 0 || hit) {
                     scene.remove(b.mesh);
                     b.mesh.geometry.dispose();
                     b.mesh.material.dispose();
@@ -1305,6 +1455,16 @@
 
             // shooting?
             if (state.isShooting) shoot();
+
+            // Crosshair Hover Red
+            if (state.opponent.mesh && state.opponent.mesh.visible) {
+                const ray = new THREE.Raycaster();
+                ray.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const intersects = ray.intersectObject(state.opponent.mesh, true);
+                const crosshair = document.getElementById('crosshair');
+                if (intersects.length > 0) crosshair.classList.add('hovering');
+                else crosshair.classList.remove('hovering');
+            }
         }
 
         function gameLoop() {
@@ -1333,6 +1493,7 @@
             if (e.code === 'Digit2') { state.me.weapon = 'SHOTGUN'; updateWeaponUI(); }
             if (e.code === 'Digit3') { state.me.weapon = 'SMG'; updateWeaponUI(); }
             if (e.code === 'Digit4') { state.me.weapon = 'SNIPER'; updateWeaponUI(); }
+            if (e.code === 'Digit5' && state.me.kills >= 1) { state.me.weapon = 'ROCKET'; updateWeaponUI(); }
         });
 
         window.addEventListener('keyup', e => {
