@@ -552,7 +552,8 @@
             SHOTGUN: { name: 'SHOTGUN', icon: '🧹', mag: 5, delay: 800, damage: 6.25, pellets: 8, spread: 0.1, type: 'semi', zoom: 65 },
             SMG: { name: 'SMG', icon: '💨', mag: 45, delay: 60, damage: 7, type: 'auto', zoom: 60 },
             SNIPER: { name: 'SNIPER RIFLE', icon: '🎯', mag: 5, delay: 1200, damage: 60, type: 'semi', zoom: 20 },
-            ROCKET: { name: 'ROCKET LAUNCHER', icon: '🚀', mag: 1, delay: 2000, damage: 50, radius: 5, type: 'semi', zoom: 60 }
+            ROCKET: { name: 'ROCKET LAUNCHER', icon: '🚀', mag: 1, delay: 2000, damage: 50, radius: 5, type: 'projectile', zoom: 60 },
+            MINIGUN: { name: 'MINIGUN', icon: '🔥', mag: 200, delay: 50, damage: 5, type: 'auto', zoom: 70 }
         };
         const RELOAD_TIME = 1500;
 
@@ -573,8 +574,9 @@
                 onGround: false,
                 lastShot: 0,
                 weapon: 'AR',
-                ammo: { AR: 25, SHOTGUN: 5, SMG: 30, SNIPER: 5, ROCKET: 1 },
+                ammo: { AR: 25, SHOTGUN: 5, SMG: 45, SNIPER: 5, ROCKET: 1, MINIGUN: 200 },
                 kills: parseInt(localStorage.getItem('frag_duel_kills')) || 0,
+                roundKills: 0,
                 reloading: false,
                 isAds: false,
                 currentFov: FOV_NORMAL
@@ -1007,8 +1009,8 @@
             state.bullets.push({
                 mesh: bullet,
                 dir: dir.clone().normalize(),
-                speed: 1.2,
-                life: 100, // frames
+                speed: 4.0, // Increased for instant feel
+                life: 40, // Shorter life since they travel fast
                 type: 'bullet'
             });
         }
@@ -1061,6 +1063,7 @@
             state.me.ammo.SNIPER = WEAPONS.SNIPER.mag;
             state.me.reloading = false;
             state.me.weapon = 'AR';
+            state.me.roundKills = 0;
             updateHPUI();
             updateWeaponUI();
             
@@ -1140,16 +1143,18 @@
                 spawnBullet(camera.position, direction);
                 state.conn.send({ type: 'shot', origin: camera.position, dir: direction });
             } else if (state.me.weapon === 'ROCKET') {
-                const intersects = raycaster.intersectObjects([...state.obstacles, state.opponent.mesh], true);
-                let hitPoint = camera.position.clone().add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(100));
-                if (intersects.length > 0) {
-                    hitPoint = intersects[0].point;
-                }
-                explode(hitPoint, WEAPONS.ROCKET.damage, WEAPONS.ROCKET.radius, true);
-                
-                // Visual Effect (Instant Tracer)
                 const direction = camera.getWorldDirection(new THREE.Vector3());
-                spawnBullet(camera.position, direction); // Use normal faster bullet for visual
+                spawnRocket(camera.position, direction, true);
+                state.conn.send({ type: 'shot_rocket', origin: camera.position, dir: direction });
+            } else if (state.me.weapon === 'MINIGUN') {
+                const direction = camera.getWorldDirection(new THREE.Vector3());
+                const intersects = raycaster.intersectObject(state.opponent.mesh, true);
+                if (intersects.length > 0) {
+                    showHitmarker();
+                    const isHead = intersects[0].object.name === 'head';
+                    state.conn.send({ type: 'hit', dmg: isHead ? weapon.damage * 2 : weapon.damage });
+                }
+                spawnBullet(camera.position, direction);
                 state.conn.send({ type: 'shot', origin: camera.position, dir: direction });
             } else {
                 // AR single shot logic
@@ -1172,12 +1177,17 @@
             state.me.reloading = true;
             document.getElementById('reload-msg').style.display = 'block';
             
+            const isMinigun = state.me.weapon === 'MINIGUN';
+            const time = isMinigun ? 5000 : RELOAD_TIME;
+            if (isMinigun) document.getElementById('reload-msg').textContent = 'OVERHEATED (5s)';
+            else document.getElementById('reload-msg').textContent = 'RELOADING...';
+
             setTimeout(() => {
                 state.me.ammo[state.me.weapon] = weapon.mag;
                 state.me.reloading = false;
                 document.getElementById('reload-msg').style.display = 'none';
                 updateWeaponUI();
-            }, RELOAD_TIME);
+            }, time);
         }
 
         function updateWeaponUI() {
@@ -1195,9 +1205,21 @@
             if (state.me.reloading) return;
             const keys = Object.keys(WEAPONS);
             let idx = keys.indexOf(state.me.weapon);
-            idx = (idx + dir + keys.length) % keys.length;
-            state.me.weapon = keys[idx];
-            updateWeaponUI();
+            
+            for (let i = 0; i < keys.length; i++) {
+                idx = (idx + dir + keys.length) % keys.length;
+                const nextWeapon = keys[idx];
+                
+                let available = true;
+                if (nextWeapon === 'ROCKET' && state.me.kills < 1) available = false;
+                if (nextWeapon === 'MINIGUN' && state.me.roundKills < 1) available = false;
+                
+                if (available) {
+                    state.me.weapon = nextWeapon;
+                    updateWeaponUI();
+                    return;
+                }
+            }
         }
 
         function showHitmarker() {
@@ -1221,28 +1243,33 @@
 
         function recordKill() {
             state.me.kills++;
+            state.me.roundKills++;
             localStorage.setItem('frag_duel_kills', state.me.kills);
-            // Trigger persistent label
-            if (state.me.kills >= 1) {
-                const label = document.getElementById('unlock-label');
-                if (label) label.classList.add('visible');
+            
+            // Rocket persistent unlock
+            if (state.me.kills === 1) {
+                flashUnlock('🚀 ROCKET LAUNCHER UNLOCKED!');
             }
             
-            // Flash unlock message if first kill
-            if (state.me.kills === 1) {
-                const msg = document.createElement('div');
-                msg.style.position = 'fixed';
-                msg.style.top = '20%';
-                msg.style.left = '50%';
-                msg.style.transform = 'translate(-50%, -50%)';
-                msg.style.color = '#fbbf24';
-                msg.style.fontSize = '2rem';
-                msg.style.fontWeight = '900';
-                msg.style.zIndex = '1000';
-                msg.textContent = '🚀 ROCKET LAUNCHER UNLOCKED!';
-                document.body.appendChild(msg);
-                setTimeout(() => msg.remove(), 3000);
+            // Minigun round unlock
+            if (state.me.roundKills === 1) {
+                flashUnlock('🔥 MINIGUN UNLOCKED!');
             }
+        }
+
+        function flashUnlock(text) {
+            const msg = document.createElement('div');
+            msg.style.position = 'fixed';
+            msg.style.top = '20%';
+            msg.style.left = '50%';
+            msg.style.transform = 'translate(-50%, -50%)';
+            msg.style.color = '#fbbf24';
+            msg.style.fontSize = '2rem';
+            msg.style.fontWeight = '900';
+            msg.style.zIndex = '1000';
+            msg.textContent = text;
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 3000);
         }
 
         function updateHPUI() {
@@ -1494,6 +1521,7 @@
             if (e.code === 'Digit3') { state.me.weapon = 'SMG'; updateWeaponUI(); }
             if (e.code === 'Digit4') { state.me.weapon = 'SNIPER'; updateWeaponUI(); }
             if (e.code === 'Digit5' && state.me.kills >= 1) { state.me.weapon = 'ROCKET'; updateWeaponUI(); }
+            if (e.code === 'Digit6' && state.me.roundKills >= 1) { state.me.weapon = 'MINIGUN'; updateWeaponUI(); }
         });
 
         window.addEventListener('keyup', e => {
