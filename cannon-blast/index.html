@@ -647,6 +647,62 @@
       transform: translateY(-2px);
       border-color: rgba(255, 255, 255, 0.2);
     }
+
+    /* Rebirth Badge */
+    #rebirth-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 20;
+      background: linear-gradient(135deg, #ff6b00, #ff9500);
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      box-shadow: 0 2px 8px rgba(255,107,0,0.4);
+      display: none;
+    }
+    #rebirth-badge.visible { display: block; }
+
+    /* Speed Toggle */
+    #speed-toggle {
+      position: absolute;
+      top: 38px;
+      left: 10px;
+      z-index: 20;
+      background: rgba(0,0,0,0.6);
+      color: #ffd700;
+      border: 1px solid rgba(255,215,0,0.4);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    #speed-toggle:hover {
+      background: rgba(0,0,0,0.8);
+      border-color: #ffd700;
+    }
+
+    /* Rebirth Screen */
+    #rebirth-screen {
+      z-index: 50;
+    }
+    #rebirth-screen h2 {
+      color: #ff6b00;
+      text-shadow: 0 0 20px rgba(255,107,0,0.5);
+    }
+    #rebirth-screen p {
+      color: #e2e8f0;
+      font-size: 14px;
+      max-width: 80%;
+      text-align: center;
+      margin: 10px 0 20px;
+      line-height: 1.5;
+    }
     </style>
 </head>
 <body>
@@ -662,6 +718,9 @@
     <div id="ui-layer">
       <div class="stat-box">Coins: <span id="coins">0</span></div>
     </div>
+    
+    <div id="rebirth-badge">🔁 x0</div>
+    <button id="speed-toggle">⏩ 1x</button>
     
     <div id="level-progress-container" style="display: none;">
       <div id="level-progress-fill"></div>
@@ -718,9 +777,18 @@
     </div>
     
     <div id="victory-screen" class="screen-overlay" style="display: none;">
-      <h2>Level Cleared!</h2>
-      <button class="screen-btn" id="next-level-btn">Next Level</button>
-      <button class="screen-btn" id="menu-btn-vic">Main Menu</button>
+      <h2 id="victory-title">Level Cleared!</h2>
+      <div id="victory-buttons">
+        <button class="screen-btn" id="next-level-btn">Next Level</button>
+        <button class="screen-btn" id="menu-btn-vic">Main Menu</button>
+      </div>
+    </div>
+    
+    <div id="rebirth-screen" class="screen-overlay" style="display: none;">
+      <h2>🔥 REBIRTH AVAILABLE! 🔥</h2>
+      <p>You defeated the Final Boss! You can keep going, or <strong>Rebirth</strong> to reset your progress and earn <strong>permanent 2x coin drops</strong>.</p>
+      <button class="screen-btn" id="rebirth-keep-btn" style="background: #22c55e;">Keep Going</button>
+      <button class="screen-btn" id="rebirth-reset-btn" style="background: #f97316;">🔁 Rebirth</button>
     </div>
   </div>
 
@@ -805,6 +873,14 @@
       hasForceField: false,
       repulsorLvl: 0, // push balls away
       repulsorCost: 250,
+      
+      // Rebirth
+      rebirths: 0,
+      coinMultiplier: 1,
+      
+      // Speed
+      gameSpeed: 1,
+      lastSpawnTime: 0,
       
       // Input
       keys: {},
@@ -1096,10 +1172,25 @@
         showMenu();
       });
       
-      showMenu();
+      // Rebirth screen buttons
+      document.getElementById('rebirth-keep-btn').addEventListener('click', () => {
+        document.getElementById('rebirth-screen').style.display = 'none';
+        state.level += 1;
+        saveProgress();
+        startLevel();
+      });
+      document.getElementById('rebirth-reset-btn').addEventListener('click', performRebirth);
       
-      // Spawn timer continuous loop (will check conditions inside)
-      setInterval(spawnLevelBall, 1500);
+      // Speed toggle
+      document.getElementById('speed-toggle').addEventListener('click', () => {
+        if (state.gameSpeed === 1) state.gameSpeed = 2;
+        else if (state.gameSpeed === 2) state.gameSpeed = 3;
+        else state.gameSpeed = 1;
+        document.getElementById('speed-toggle').textContent = `\u23e9 ${state.gameSpeed}x`;
+      });
+      
+      showMenu();
+      // Spawn timer - now timestamp-based in update(), no setInterval
 
       document.getElementById('open-shop-btn').addEventListener('click', showShop);
       document.getElementById('close-shop-btn').addEventListener('click', showMenu);
@@ -1112,7 +1203,9 @@
       victoryScreen.style.display = 'none';
       shopScreen.style.display = 'none';
       levelProgressContainer.style.display = 'none';
+      document.getElementById('rebirth-screen').style.display = 'none';
       loadProgress();
+      updateRebirthBadge();
       if (state.level > 1) {
         document.getElementById('play-btn').textContent = `Resume Level ${state.level}`;
       } else {
@@ -1430,7 +1523,9 @@
       state.ballsSpawnedThisLevel = 0;
       state.ballsDestroyedThisLevel = 0;
       state.isBossLevel = state.level % 5 === 0;
-      state.totalBallsForLevel = state.isBossLevel ? 1 : (10 + Math.floor(state.level * 3)); // 1 for boss
+      const finalBossLevel = 50 + (state.rebirths * 25);
+      state.isFinalBoss = state.level === finalBossLevel;
+      state.totalBallsForLevel = state.isBossLevel ? 1 : (10 + Math.floor(state.level * 3) + Math.floor(state.level / 5) * 2);
       
       state.running = true;
       state.cannonX = 270;
@@ -1438,6 +1533,7 @@
       state.balls = [];
       state.drops = [];
       state.lastShotTime = 0;
+      state.lastSpawnTime = 0;
       state.freezeEndTime = 0;
       
       if (state.boss && state.boss.el) {
@@ -1476,7 +1572,7 @@
       victoryScreen.style.display = 'none';
       levelProgressContainer.style.display = 'block';
       
-      levelText.textContent = state.isBossLevel ? `BOSS ROUND!` : `Level ${state.level}`;
+      levelText.textContent = state.isFinalBoss ? `\ud83d\udd25 FINAL BOSS!` : (state.isBossLevel ? `BOSS ROUND!` : `Level ${state.level}`);
       updateProgressBar();
       
       requestAnimationFrame(gameLoop);
@@ -1505,7 +1601,9 @@
           pierceLvl: 0, pierceCost: 250,
           forceFieldLvl: 0, forceFieldCost: 300,
           repulsorLvl: 0, repulsorCost: 250,
-          hasForceField: false
+          hasForceField: false,
+          rebirths: 0,
+          coinMultiplier: 1
         });
         saveProgress();
         loadProgress(); // Refresh UI/Stats
@@ -1529,7 +1627,9 @@
         shockwaveLvl: state.shockwaveLvl, shockwaveCost: state.shockwaveCost,
         pierceLvl: state.pierceLvl, pierceCost: state.pierceCost,
         forceFieldLvl: state.forceFieldLvl, forceFieldCost: state.forceFieldCost,
-        repulsorLvl: state.repulsorLvl, repulsorCost: state.repulsorCost
+        repulsorLvl: state.repulsorLvl, repulsorCost: state.repulsorCost,
+        rebirths: state.rebirths,
+        coinMultiplier: state.coinMultiplier
       };
       localStorage.setItem('cannonBlastSave', JSON.stringify(saveData));
     }
@@ -1715,15 +1815,65 @@
             });
         }
         // Immediately add coins (visuals drop to bottom)
-        state.coins += amount;
+        state.coins += Math.round(amount * state.coinMultiplier);
         updateUI();
+    }
+    
+    function updateRebirthBadge() {
+      const badge = document.getElementById('rebirth-badge');
+      if (state.rebirths > 0) {
+        badge.textContent = `\ud83d\udd01 x${state.rebirths}`;
+        badge.classList.add('visible');
+      } else {
+        badge.classList.remove('visible');
+      }
+    }
+    
+    function getFinalBossLevel() {
+      return 50 + (state.rebirths * 25);
+    }
+    
+    function performRebirth() {
+      state.rebirths += 1;
+      state.coinMultiplier = Math.pow(2, state.rebirths);
+      
+      // Reset progression but keep cosmetics and rebirths
+      Object.assign(state, {
+        level: 1,
+        coins: 0,
+        damage: 1,
+        damageLvl: 1,
+        damageCost: 10,
+        fireRate: 400,
+        fireRateLvl: 1,
+        fireRateCost: 10,
+        critChance: 2,
+        critLvl: 1,
+        critCost: 15,
+        multiShotLvl: 1, multiShotCost: 100,
+        bulletSizeLvl: 1, bulletSizeCost: 75,
+        projSpeedLvl: 1, projSpeedCost: 75,
+        shockwaveLvl: 0, shockwaveCost: 200,
+        pierceLvl: 0, pierceCost: 250,
+        forceFieldLvl: 0, forceFieldCost: 300,
+        repulsorLvl: 0, repulsorCost: 250,
+        hasForceField: false
+      });
+      
+      saveProgress();
+      document.getElementById('rebirth-screen').style.display = 'none';
+      updateRebirthBadge();
+      showMenu();
     }
     
     // Loop
     function gameLoop(timestamp) {
       if (!state.running) return;
       
-      update(timestamp);
+      // Run update multiple times per frame for speed multiplier
+      for (let s = 0; s < state.gameSpeed; s++) {
+        update(timestamp);
+      }
       particles.update();
       draw(timestamp);
       
@@ -1744,6 +1894,13 @@
       if ((state.isShooting || isKeyboardShooting) && timestamp - state.lastShotTime > state.fireRate) {
         state.lastShotTime = timestamp;
         shoot();
+      }
+      
+      // Timestamp-based spawner (respects speed)
+      const spawnInterval = 1500 / state.gameSpeed;
+      if (timestamp - state.lastSpawnTime > spawnInterval) {
+        state.lastSpawnTime = timestamp;
+        spawnLevelBall();
       }
       
       // Update bullets
@@ -2182,7 +2339,14 @@
     function levelComplete() {
         state.running = false;
         saveProgress();
-        victoryScreen.style.display = 'flex';
+        
+        const finalBossLevel = getFinalBossLevel();
+        if (state.level === finalBossLevel) {
+          // Show rebirth screen
+          document.getElementById('rebirth-screen').style.display = 'flex';
+        } else {
+          victoryScreen.style.display = 'flex';
+        }
     }
     
     // Start!
