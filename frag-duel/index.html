@@ -157,20 +157,48 @@
         }
 
         .hud-bottom {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
-            justify-content: center;
-            align-items: flex-end;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud-bottom-left {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
 
         .stat-card {
-            background: rgba(30, 41, 59, 0.6);
+            background: rgba(15, 23, 42, 0.8);
             backdrop-filter: blur(8px);
-            padding: 15px 25px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
+        }
+
+        .weapon-card {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 2px solid var(--primary);
+            color: white;
+            font-weight: 800;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .hp-bar-container {
@@ -359,21 +387,32 @@
 
     <div id="hud" class="hidden">
         <div class="hud-top">
+            <div class="room-info" id="connection-status">Connected</div>
+        </div>
+        
+        <div class="hud-bottom-left">
             <div class="stat-card">
                 <div style="font-size: 14px; font-weight: 800; color: #f43f5e;">HP</div>
                 <div class="hp-bar-container">
                     <div id="hp-fill"></div>
                 </div>
             </div>
-            <div class="room-info" id="connection-status">Connected</div>
+            <div class="weapon-card">
+                <span id="weapon-icon">🔫</span>
+                <span id="weapon-name">ASSAULT RIFLE</span>
+                <span id="ammo-display" style="color: #fbbf24; margin-left: 10px;">25 / ∞</span>
+            </div>
         </div>
+
         <div id="kill-feed"></div>
         <div id="hitmarker" class="hitmarker"></div>
+        
+        <div class="hud-bottom">
+            <div id="reload-msg" style="color: #ef4444; font-weight: 800; display: none; margin-bottom: 10px;">RELOADING...</div>
             <div style="color: #64748b; font-size: 12px; display: flex; gap: 20px;">
-                <span>WASD - Move | CLICK - Shoot | SPACE - Jump | R - Reload</span>
-                <span id="ammo-display" style="color: #fbbf24; font-weight: 800;">AMMO: 25 / ∞</span>
-                <span id="reload-msg" style="color: #ef4444; font-weight: 800; display: none;">RELOADING...</span>
+                <span>WASD: Move | CLICK: Shoot | SPACE: Jump | R: Reload | SCROLL: Switch</span>
             </div>
+        </div>
     </div>
 
     <div id="crosshair" class="hidden"></div>
@@ -401,6 +440,11 @@
         const GRAVITY = 0.008;
         const JUMP_FORCE = 0.15;
         const ARENA_SIZE = 50;
+        const WEAPONS = {
+            AR: { name: 'ASSAULT RIFLE', icon: '🔫', mag: 25, delay: 100, damage: 10, type: 'auto' },
+            SHOTGUN: { name: 'SHOTGUN', icon: '🧹', mag: 5, delay: 800, damage: 5, pellets: 8, spread: 0.1, type: 'semi' }
+        };
+        const RELOAD_TIME = 1500;
         const RELOAD_TIME = 1500;
         const MAG_SIZE = 25;
 
@@ -418,7 +462,10 @@
                 rot: new THREE.Euler(0, 0, 0, 'YXZ'),
                 vel: new THREE.Vector3(0, 0, 0),
                 onGround: false,
-                lastShot: 0
+                lastShot: 0,
+                weapon: 'AR',
+                ammo: { AR: 25, SHOTGUN: 5 },
+                reloading: false
             },
             opponent: {
                 id: null,
@@ -631,10 +678,12 @@
             camera.position.copy(state.me.pos);
             state.hp = 100;
             state.opponent.hp = 100;
-            state.me.ammo = MAG_SIZE;
+            state.me.ammo.AR = WEAPONS.AR.mag;
+            state.me.ammo.SHOTGUN = WEAPONS.SHOTGUN.mag;
             state.me.reloading = false;
+            state.me.weapon = 'AR';
             updateHPUI();
-            updateAmmoUI();
+            updateWeaponUI();
             
             controls.lock();
             
@@ -645,57 +694,92 @@
 
         function shoot() {
             if (!state.running || state.me.reloading) return;
-            if (state.me.ammo <= 0) {
+            const weapon = WEAPONS[state.me.weapon];
+            
+            if (state.me.ammo[state.me.weapon] <= 0) {
                 reload();
                 return;
             }
 
             const now = Date.now();
-            if (now - state.me.lastShot < 100) return; // Faster AR fire rate
+            if (now - state.me.lastShot < weapon.delay) return;
             state.me.lastShot = now;
-            state.me.ammo--;
-            updateAmmoUI();
+            state.me.ammo[state.me.weapon]--;
+            updateWeaponUI();
 
-            // Trace/Visual (No big flash, just subtle tracer)
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            
-            // Interaction visual
+            // Muzzle flash / Trace
             const flash = new THREE.PointLight(0xfffc00, 0.5, 2);
             flash.position.copy(camera.position).add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(0.5));
             scene.add(flash);
             setTimeout(() => scene.remove(flash), 20);
 
-            // Check if we hit opponent mesh
-            const intersects = raycaster.intersectObject(state.opponent.mesh, true);
-            if (intersects.length > 0) {
-                showHitmarker();
-                state.conn.send({ type: 'hit', dmg: 10 }); // Lower damage for faster fire rate
-            }
+            const raycaster = new THREE.Raycaster();
+            
+            if (state.me.weapon === 'SHOTGUN') {
+                // Multi-pellet logic
+                let hits = 0;
+                for (let i = 0; i < weapon.pellets; i++) {
+                    const spreadX = (Math.random() - 0.5) * weapon.spread;
+                    const spreadY = (Math.random() - 0.5) * weapon.spread;
+                    
+                    const direction = camera.getWorldDirection(new THREE.Vector3());
+                    // Apply spread
+                    const right = new THREE.Vector3().crossVectors(direction, camera.up).normalize();
+                    const up = new THREE.Vector3().crossVectors(right, direction).normalize();
+                    direction.addScaledVector(right, spreadX).addScaledVector(up, spreadY).normalize();
+                    
+                    raycaster.set(camera.position, direction);
+                    if (raycaster.intersectObject(state.opponent.mesh, true).length > 0) {
+                        hits++;
+                    }
+                    
+                    // Visual Tracers
+                    state.conn.send({ type: 'shot', origin: camera.position, dir: direction });
+                }
 
-            // Send shot info to opponent
-            state.conn.send({ 
-                type: 'shot', 
-                origin: camera.position, 
-                dir: camera.getWorldDirection(new THREE.Vector3()) 
-            });
+                if (hits > 0) {
+                    showHitmarker();
+                    state.conn.send({ type: 'hit', dmg: hits * weapon.damage });
+                }
+            } else {
+                // AR single shot logic
+                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                if (raycaster.intersectObject(state.opponent.mesh, true).length > 0) {
+                    showHitmarker();
+                    state.conn.send({ type: 'hit', dmg: weapon.damage });
+                }
+                state.conn.send({ type: 'shot', origin: camera.position, dir: camera.getWorldDirection(new THREE.Vector3()) });
+            }
         }
 
         function reload() {
-            if (state.me.reloading || state.me.ammo === MAG_SIZE) return;
+            const weapon = WEAPONS[state.me.weapon];
+            if (state.me.reloading || state.me.ammo[state.me.weapon] === weapon.mag) return;
             state.me.reloading = true;
             document.getElementById('reload-msg').style.display = 'block';
             
             setTimeout(() => {
-                state.me.ammo = MAG_SIZE;
+                state.me.ammo[state.me.weapon] = weapon.mag;
                 state.me.reloading = false;
                 document.getElementById('reload-msg').style.display = 'none';
-                updateAmmoUI();
+                updateWeaponUI();
             }, RELOAD_TIME);
         }
 
-        function updateAmmoUI() {
-            document.getElementById('ammo-display').textContent = `AMMO: ${state.me.ammo} / ∞`;
+        function updateWeaponUI() {
+            const weapon = WEAPONS[state.me.weapon];
+            document.getElementById('weapon-icon').textContent = weapon.icon;
+            document.getElementById('weapon-name').textContent = weapon.name;
+            document.getElementById('ammo-display').textContent = `${state.me.ammo[state.me.weapon]} / ∞`;
+        }
+
+        function switchWeapon(dir) {
+            if (state.me.reloading) return;
+            const keys = Object.keys(WEAPONS);
+            let idx = keys.indexOf(state.me.weapon);
+            idx = (idx + dir + keys.length) % keys.length;
+            state.me.weapon = keys[idx];
+            updateWeaponUI();
         }
 
         function showHitmarker() {
@@ -849,8 +933,14 @@
         window.addEventListener('keydown', e => {
             state.keys[e.code] = true;
             if (e.code === 'KeyR') reload();
+            if (e.code === 'Digit1') { state.me.weapon = 'AR'; updateWeaponUI(); }
+            if (e.code === 'Digit2') { state.me.weapon = 'SHOTGUN'; updateWeaponUI(); }
         });
-        window.addEventListener('keyup', e => state.keys[e.code] = false);
+
+        window.addEventListener('wheel', e => {
+            if (!state.running) return;
+            switchWeapon(e.deltaY > 0 ? 1 : -1);
+        });
         
         window.addEventListener('mousedown', () => {
             if (state.running) state.isShooting = true;
