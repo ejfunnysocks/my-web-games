@@ -187,6 +187,67 @@
             pointer-events: none;
             z-index: 50;
         }
+
+        /* Info Button & Overlay */
+        #info-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 120;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(10, 10, 10, 0.6);
+            border: 1.5px solid var(--primary);
+            color: var(--primary);
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        #info-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            transform: scale(1.1);
+        }
+        #info-game-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            padding: 20px;
+        }
+        #info-game-overlay.visible { display: flex; }
+        .info-card {
+            background: #0f172a;
+            border: 1px solid var(--primary);
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 450px;
+            width: 100%;
+            position: relative;
+            box-shadow: 0 0 50px rgba(99, 102, 241, 0.3);
+        }
+        .info-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .info-card h2 { margin-top: 0; color: white; display: flex; align-items: center; gap: 10px; }
+        .info-section { color: var(--primary); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; margin-top: 1.5rem; display: block; }
+        .info-card p { color: #94a3b8; margin: 0.5rem 0; font-size: 0.95rem; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -197,6 +258,19 @@
         <div id="best-bar-container"><div id="best-bar-fill"></div></div>
         <div id="best-label">Best: 0</div>
         <div id="vfx-overlay"></div>
+        <button id="info-btn">i</button>
+        <div id="info-game-overlay">
+            <div class="info-card">
+                <button class="info-close" id="close-info">&times;</button>
+                <h2>🌀 Vortex Voyager</h2>
+                <span class="info-section">Goal</span>
+                <p>Survive as long as possible while plummeting down a procedurally generated neon tunnel. Dodge the red wall segments — touching one ends your run.</p>
+                <span class="info-section">Controls</span>
+                <p><strong>Rotate the tunnel:</strong> Click and drag left/right, press ← / → arrow keys, or touch and swipe. Your ship stays fixed at the bottom center — you rotate the world instead.</p>
+                <span class="info-section">How it works</span>
+                <p>The tunnel rings scroll toward you continuously, getting faster as your distance increases. Obstacle rings have red jagged wall segments that block part of the ring's opening — rotate so the gap lines up with your ship's position (bottom center). Your score increases for every ring you pass through.</p>
+            </div>
+        </div>
         <canvas id="game-canvas"></canvas>
 
         <!-- Menu Overlay -->
@@ -602,6 +676,12 @@
         document.getElementById('restart-btn').addEventListener('click', startDescent);
 
         requestAnimationFrame(gameLoop);
+        document.getElementById('info-btn').addEventListener('click', () => {
+            document.getElementById('info-game-overlay').classList.add('visible');
+        });
+        document.getElementById('close-info').addEventListener('click', () => {
+            document.getElementById('info-game-overlay').classList.remove('visible');
+        });
     </script>
 </body>
 </html>

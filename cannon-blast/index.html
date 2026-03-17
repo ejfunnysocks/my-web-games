@@ -703,6 +703,67 @@
       margin: 10px 0 20px;
       line-height: 1.5;
     }
+
+    /* Info Button and Overlay */
+    #info-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 100;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1.5px solid rgba(255, 215, 0, 0.7);
+      color: #ffd700;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      transition: all 0.2s;
+    }
+    #info-btn:hover {
+      background: rgba(255, 215, 0, 0.2);
+      transform: scale(1.1);
+    }
+    #info-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #info-overlay.visible { display: flex; }
+    .info-content {
+      background: #1a1a2e;
+      border: 2px solid #4a90e2;
+      border-radius: 16px;
+      padding: 25px;
+      max-width: 450px;
+      width: 100%;
+      box-shadow: 0 0 30px rgba(74, 144, 226, 0.3);
+      position: relative;
+    }
+    .info-content h2 { color: #4a90e2; margin-top: 0; }
+    .info-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    .info-section-label { color: #ffd700; font-weight: bold; margin-top: 15px; display: block; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
+    .info-content p { color: #e2e8f0; line-height: 1.5; font-size: 14px; margin: 5px 0; }
     </style>
 </head>
 <body>
@@ -721,6 +782,20 @@
     
     <div id="rebirth-badge">🔁 x0</div>
     <button id="speed-toggle">⏩ 1x</button>
+    <button id="info-btn">i</button>
+    
+    <div id="info-overlay">
+      <div class="info-content">
+        <button class="info-close" id="close-info">&times;</button>
+        <h2>🚀 Cannon Blast Guide</h2>
+        <span class="info-section-label">Goal</span>
+        <p>Defend your base by shooting enemy balls before they reach you. Clear all the balls in each level to advance, and defeat boss rounds every 5 levels.</p>
+        <span class="info-section-label">Controls</span>
+        <p><strong>Move:</strong> Arrow keys or A / D | <strong>Shoot:</strong> Hold W, ↑, or Space (auto-fires while held). On mobile, drag the slider to move and tap the fire button to shoot.</p>
+        <span class="info-section-label">How it works</span>
+        <p>Balls fly in from either side. Each ball has HP shown on it — shoot it enough times to destroy it. Spend coins earned from kills on upgrades like damage, fire rate, multi-shot, piercing bullets, and more. Boss rounds spawn a giant enemy that slams down at you and sends minion balls!</p>
+      </div>
+    </div>
     
     <div id="level-progress-container" style="display: none;">
       <div id="level-progress-fill"></div>
@@ -1523,7 +1598,7 @@
       state.ballsSpawnedThisLevel = 0;
       state.ballsDestroyedThisLevel = 0;
       state.isBossLevel = state.level % 5 === 0;
-      const finalBossLevel = 50 + (state.rebirths * 25);
+      const finalBossLevel = 25 + (state.rebirths * 25);
       state.isFinalBoss = state.level === finalBossLevel;
       state.totalBallsForLevel = state.isBossLevel ? 1 : (10 + Math.floor(state.level * 3) + Math.floor(state.level / 5) * 2);
       // Scale max enemies on screen: 3 at level 1, +1 every 2 levels, capped at 10
@@ -1818,7 +1893,7 @@
     }
     
     function getFinalBossLevel() {
-      return 50 + (state.rebirths * 25);
+      return 25 + (state.rebirths * 25);
     }
     
     function performRebirth() {
@@ -2347,6 +2422,18 @@
     
     // Start!
     init();
+    document.getElementById('info-btn').addEventListener('click', () => {
+      document.getElementById('info-overlay').classList.add('visible');
+    });
+    document.getElementById('close-info').addEventListener('click', () => {
+      document.getElementById('info-overlay').classList.remove('visible');
+    });
+
+    // Final guard against clicks leaking
+    document.querySelector('.info-content').addEventListener('click', (e) => e.stopPropagation());
+    document.getElementById('info-overlay').addEventListener('click', () => {
+      document.getElementById('info-overlay').classList.remove('visible');
+    });
   </script>
 </body>
 </html>
