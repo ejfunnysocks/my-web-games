@@ -329,15 +329,17 @@
         }
 
         function update(timestamp) {
-            const dt = timestamp - state.lastTime;
+            const rawDt = timestamp - state.lastTime;
             state.lastTime = timestamp;
+            // Normalize to 60fps, cap at 2x to avoid spiral after tab switch
+            const dt = Math.min(rawDt / 16.67, 2.0);
 
             if (!state.running) return;
 
             // Player Physics
-            state.player.vy += GRAVITY_FORCE * state.player.gravity;
-            state.player.y += state.player.vy;
-            state.player.animTime += state.speed * 0.1;
+            state.player.vy += GRAVITY_FORCE * state.player.gravity * dt;
+            state.player.y += state.player.vy * dt;
+            state.player.animTime += state.speed * 0.1 * dt;
 
             // Collision with Ground
             const bottomY = height - GROUND_H - state.player.radius;
@@ -352,19 +354,19 @@
             }
 
             // Trail update
-            state.trail.forEach(t => t.life -= 0.05);
+            state.trail.forEach(t => t.life -= 0.05 * dt);
             state.trail = state.trail.filter(t => t.life > 0);
 
             // Move Platforms & Obstacles
-            state.score += state.speed / 30; // Slower meter accumulation
+            state.score += (state.speed / 30) * dt; // Slower meter accumulation
             
-            state.platforms.forEach(p => p.x -= state.speed);
+            state.platforms.forEach(p => p.x -= state.speed * dt);
             if (state.platforms[0].x < -width) {
                 state.platforms.forEach(p => p.x += width);
             }
 
             state.obstacles.forEach((obs, idx) => {
-                obs.x -= state.speed;
+                obs.x -= state.speed * dt;
                 // Collision
                 const dx = state.player.x - (obs.x + obs.w/2);
                 const dy = state.player.y - (obs.y + obs.h/2);
@@ -376,7 +378,7 @@
             });
 
             // Obstacle Spawning (Fair & Scaling)
-            state.obstacleTimer -= dt;
+            state.obstacleTimer -= rawDt;
             if (state.obstacleTimer <= 0) {
                // Progression
             state.speed = Math.min(MAX_SPEED, 6 + (state.score * 0.03)); // Slower speed scaling

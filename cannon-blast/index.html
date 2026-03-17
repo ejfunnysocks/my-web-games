@@ -831,7 +831,7 @@
       ballsSpawnedThisLevel: 0,
       ballsDestroyedThisLevel: 0,
       totalBallsForLevel: 10,
-      maxBallsOnScreen: 5,
+      maxBallsOnScreen: 3,
       freezeEndTime: 0,
       isBossLevel: false,
       boss: null,
@@ -1526,6 +1526,8 @@
       const finalBossLevel = 50 + (state.rebirths * 25);
       state.isFinalBoss = state.level === finalBossLevel;
       state.totalBallsForLevel = state.isBossLevel ? 1 : (10 + Math.floor(state.level * 3) + Math.floor(state.level / 5) * 2);
+      // Scale max enemies on screen: 3 at level 1, +1 every 2 levels, capped at 10
+      state.maxBallsOnScreen = Math.min(10, 3 + Math.floor((state.level - 1) / 2));
       
       state.running = true;
       state.cannonX = 270;
@@ -1772,7 +1774,7 @@
       const vy = random(-3, -1); // upward arc
       
       // Base HP scales with level
-      const baseHp = 10 + ((state.level - 1) * 5);
+      const baseHp = 5 + ((state.level - 1) * 5);
       
       // 5% chance for a freeze ball
       const type = Math.random() < 0.05 ? 'freeze' : 'normal';
@@ -1853,12 +1855,18 @@
     }
     
     // Loop
+    let _lastFrameTime = 0;
     function gameLoop(timestamp) {
       if (!state.running) return;
       
+      // Delta-time governor: normalize to 60fps, cap at 2x to prevent spiral after tab switch
+      const rawDt = _lastFrameTime ? timestamp - _lastFrameTime : 16.67;
+      _lastFrameTime = timestamp;
+      const dt = Math.min(rawDt / 16.67, 2.0);
+      
       // Run update multiple times per frame for speed multiplier
       for (let s = 0; s < state.gameSpeed; s++) {
-        update(timestamp);
+        update(timestamp, dt);
       }
       particles.update();
       draw(timestamp);
@@ -1866,9 +1874,9 @@
       requestAnimationFrame(gameLoop);
     }
     
-    function update(timestamp) {
+    function update(timestamp, dt = 1) {
       // Player movement
-      const speed = 12;
+      const speed = 12 * dt;
       if (state.keys['ArrowLeft'] || state.keys['KeyA']) state.cannonX -= speed;
       if (state.keys['ArrowRight'] || state.keys['KeyD']) state.cannonX += speed;
       
@@ -1892,7 +1900,7 @@
       // Update bullets
       for (let i = state.bullets.length - 1; i >= 0; i--) {
         const b = state.bullets[i];
-        b.y -= 10;
+        b.y -= 10 * dt;
         
         // Remove offscreen
         if (b.y < -20) {
@@ -1906,7 +1914,7 @@
          const boss = state.boss;
          
          if (boss.phase === 'hover') {
-             boss.x += boss.vx;
+             boss.x += boss.vx * dt;
              if (boss.x <= 0 || boss.x + BOSS_W >= GAME_W) boss.vx *= -1;
              
              // Spawn minions in bursts
@@ -1933,7 +1941,7 @@
          } else if (boss.phase === 'warning') {
              // Track player slightly
              const targetX = state.cannonX + CANNON_W/2 - BOSS_W/2;
-             boss.x += (targetX - boss.x) * 0.05;
+             boss.x += (targetX - boss.x) * 0.05 * dt;
              
              if (timestamp > boss.timer) {
                  boss.phase = 'slam';
@@ -1944,7 +1952,7 @@
                  }
              }
          } else if (boss.phase === 'slam') {
-             boss.y += boss.vy;
+             boss.y += boss.vy * dt;
              
              // Collision with cannon
              if (boss.y + BOSS_H > FLOOR_Y - 50 && boss.x < state.cannonX + CANNON_W && boss.x + BOSS_W > state.cannonX) {
@@ -1962,7 +1970,7 @@
                  boss.phase = 'return';
              }
          } else if (boss.phase === 'return') {
-             boss.y -= 3;
+             boss.y -= 3 * dt;
              if (boss.y <= 50) {
                  boss.y = 50;
                  boss.phase = 'hover';
@@ -2031,9 +2039,9 @@
       const now = Date.now();
       for (let i = state.drops.length - 1; i >= 0; i--) {
         const d = state.drops[i];
-        d.vy += GRAVITY * 4;
-        d.x += d.vx;
-        d.y += d.vy;
+        d.vy += GRAVITY * 4 * dt;
+        d.x += d.vx * dt;
+        d.y += d.vy * dt;
         
         // Remove if hit floor or lived longer than 1 second
         if (d.y > FLOOR_Y || (now - d.spawnTime) > 1000) {
@@ -2048,9 +2056,9 @@
         
         // Physics only run if not frozen
         if (Date.now() >= state.freezeEndTime) {
-            b.vy += GRAVITY;
-            b.x += b.vx;
-            b.y += b.vy;
+            b.vy += GRAVITY * dt;
+            b.x += b.vx * dt;
+            b.y += b.vy * dt;
         }
         
         // Bounce off walls (only if fully inside screen to prevent getting stuck when spawning)

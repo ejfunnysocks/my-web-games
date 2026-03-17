@@ -376,23 +376,25 @@
 
         // --- Core Loop ---
         function update(timestamp) {
-            const dt = timestamp - state.lastTime;
+            const rawDt = timestamp - state.lastTime;
             state.lastTime = timestamp;
+            // Normalize to 60fps, cap at 2x to avoid spiral after tab switch
+            const dt = Math.min(rawDt / 16.67, 2.0);
 
             if (!state.running) return;
 
             // Rotation smoothing
-            state.rotation += (state.targetRotation - state.rotation) * 0.1;
+            state.rotation += (state.targetRotation - state.rotation) * 0.1 * dt;
             
             // Speed progression
             state.targetSpeed = 0.05 + (state.distance * 0.0001);
-            state.speed += (state.targetSpeed - state.speed) * 0.01;
-            state.distance += state.speed;
+            state.speed += (state.targetSpeed - state.speed) * 0.01 * dt;
+            state.distance += state.speed * dt;
 
             // Update layers
             for (let i = state.layers.length - 1; i >= 0; i--) {
                 const layer = state.layers[i];
-                layer.z -= state.speed;
+                layer.z -= state.speed * dt;
 
                 if (layer.z < 0.1) {
                     // Collision Check
