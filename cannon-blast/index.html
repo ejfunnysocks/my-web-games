@@ -1498,7 +1498,7 @@
           { name: 'Multi-Shot', id: 'multiShot', lvl: state.multiShotLvl, cost: state.multiShotCost, max: 3 * (state.rebirths + 1), desc: 'Fire multiple bullets' },
           { name: 'Bullet Size', id: 'bulletSize', lvl: state.bulletSizeLvl, cost: state.bulletSizeCost, max: 5 * (state.rebirths + 1), desc: 'Increases bullet hitbox' },
           { name: 'Proj Speed', id: 'projSpeed', lvl: state.projSpeedLvl, cost: state.projSpeedCost, max: 5 * (state.rebirths + 1), desc: 'Faster bullets' },
-          { name: 'Shockwave', id: 'shockwave', lvl: state.shockwaveLvl, cost: state.shockwaveCost, max: 1 * (state.rebirths + 1), desc: 'Every 10th shot explodes' },
+          { name: 'Shockwave', id: 'shockwave', lvl: state.shockwaveLvl, cost: state.shockwaveCost, max: 5 * (state.rebirths + 1), desc: 'Frequency of explosive shots' },
           { name: 'Piercing Bullets', id: 'pierce', lvl: state.pierceLvl, cost: state.pierceCost, max: 3 * (state.rebirths + 1), desc: 'Bullets pass through balls' },
           { name: 'Force Field', id: 'forceField', lvl: state.forceFieldLvl, cost: state.forceFieldCost, max: 1 * (state.rebirths + 1), desc: 'Survive one hit' },
           { name: 'Repulsor', id: 'repulsor', lvl: state.repulsorLvl, cost: state.repulsorCost, max: 3 * (state.rebirths + 1), desc: 'Pushes balls away' }
@@ -2484,11 +2484,13 @@
         // Shockwave Generator
         state.shotCounter++;
         let isExplosive = false;
-        const shockInterval = Math.max(2, 11 - state.shockwaveLvl);
-        if (state.shockwaveLvl > 0 && state.shotCounter % shockInterval === 0) {
-          isExplosive = true;
-          el.style.background = '#ff0000';
-          el.style.boxShadow = '0 0 10px #ff0000';
+        if (state.shockwaveLvl > 0) {
+          const shockInterval = Math.max(2, 12 - (state.shockwaveLvl * 2));
+          if (state.shotCounter % shockInterval === 0) {
+            isExplosive = true;
+            el.style.background = '#ff0000';
+            el.style.boxShadow = '0 0 10px #ff0000';
+          }
         }
 
         container.appendChild(el);
