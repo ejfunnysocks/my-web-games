@@ -1535,7 +1535,7 @@
               if (state.coins >= upg.cost && !isMax) {
                   state.coins -= upg.cost;
                   state[upg.id + 'Lvl']++;
-                  state[upg.id + 'Cost'] = Math.floor(upg.cost * 2.2);
+                  state[upg.id + 'Cost'] = Math.floor(upg.cost * 1.8);
                   if (upg.id === 'forceField') state.hasForceField = true;
                   updateUI();
                   saveProgress();
@@ -1876,9 +1876,9 @@
     function upgradeDamage() {
       if (state.coins >= state.damageCost) {
         state.coins -= state.damageCost;
-        state.damage += 1;
+        state.damage += 2;
         state.damageLvl += 1;
-        state.damageCost = Math.floor(state.damageCost * 1.5);
+        state.damageCost = Math.floor(state.damageCost * 1.4);
         document.getElementById('cost-damage').textContent = state.damageCost;
         document.getElementById('val-damage').textContent = state.damage;
         updateUI();
@@ -1892,7 +1892,7 @@
         state.coins -= state.fireRateCost;
         state.fireRate = Math.max(minFireRate, state.fireRate * 0.92);
         state.fireRateLvl += 1;
-        state.fireRateCost = Math.floor(state.fireRateCost * 1.5);
+        state.fireRateCost = Math.floor(state.fireRateCost * 1.4);
         
         if (state.fireRate <= minFireRate) {
             document.getElementById('cost-firerate').textContent = 'MAX';
@@ -1909,9 +1909,9 @@
     function upgradeCrit() {
       if (state.coins >= state.critCost) {
         state.coins -= state.critCost;
-        state.critChance += 2;
+        state.critChance += 5;
         state.critLvl += 1;
-        state.critCost = Math.floor(state.critCost * 1.5);
+        state.critCost = Math.floor(state.critCost * 1.4);
         document.getElementById('cost-crit').textContent = state.critCost;
         document.getElementById('val-crit').textContent = state.critChance;
         updateUI();
