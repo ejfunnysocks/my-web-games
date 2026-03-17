@@ -939,6 +939,8 @@
                     explode(new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z), data.damage, data.radius, false);
                 } else if (data.type === 'hit') {
                     takeDamage(data.dmg);
+                } else if (data.type === 'victory') {
+                    endMatch(true);
                 }
             });
 
@@ -1237,6 +1239,9 @@
             setTimeout(() => document.body.style.background = '#0f172a', 100);
 
             if (state.hp <= 0) {
+                if (state.conn && state.conn.open) {
+                    state.conn.send({ type: 'victory' });
+                }
                 endMatch(false);
             }
         }
