@@ -469,7 +469,7 @@
         const PLAYER_SPEED = 0.15;
         const PLAYER_HEIGHT = 1.7;
         const GRAVITY = 0.008;
-        const JUMP_FORCE = 0.22;
+        const JUMP_FORCE = 0.35;
         const ARENA_SIZE = 50;
         const WEAPONS = {
             AR: { name: 'ASSAULT RIFLE', icon: '🔫', mag: 25, delay: 100, damage: 10, type: 'auto' },
@@ -738,12 +738,13 @@
                 if (data.type === 'start') {
                     startMatch();
                 } else if (data.type === 'update') {
+                    const feetY = data.pos.y - PLAYER_HEIGHT;
                     if (!state.opponent.hasData) {
-                        state.opponent.pos.set(data.pos.x, data.pos.y, data.pos.z);
-                        state.opponent.mesh.position.set(data.pos.x, data.pos.y, data.pos.z);
+                        state.opponent.pos.set(data.pos.x, feetY, data.pos.z);
+                        state.opponent.mesh.position.set(data.pos.x, feetY, data.pos.z);
                         state.opponent.hasData = true;
                     }
-                    state.opponent.pos.set(data.pos.x, data.pos.y, data.pos.z);
+                    state.opponent.pos.set(data.pos.x, feetY, data.pos.z);
                     state.opponent.rot.y = data.rot.y;
                 } else if (data.type === 'shot') {
                     handleIncomingShot(data.origin, data.dir);
