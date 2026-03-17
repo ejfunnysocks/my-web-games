@@ -1535,7 +1535,7 @@
               if (state.coins >= upg.cost && !isMax) {
                   state.coins -= upg.cost;
                   state[upg.id + 'Lvl']++;
-                  state[upg.id + 'Cost'] = Math.floor(upg.cost * 1.8);
+                  state[upg.id + 'Cost'] = Math.floor(upg.cost * 2.2);
                   if (upg.id === 'forceField') state.hasForceField = true;
                   updateUI();
                   saveProgress();
