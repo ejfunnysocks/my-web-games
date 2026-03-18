@@ -500,6 +500,9 @@
     <div id="loading-screen" class="screen">
         <span class="loader"></span>
         <p style="margin-top: 20px; color: #64748b;">Initializing 3D Engine...</p>
+        <button id="skip-to-solo" class="secondary-btn" style="margin-top: 30px; font-size: 14px;">
+            ⚠️ Skip to Offline Practice
+        </button>
     </div>
 
     <div id="lobby-screen" class="screen hidden">
@@ -530,7 +533,10 @@
             <div id="join-controls">
                 <p class="status-msg">Join a friend's game:</p>
                 <input type="text" id="join-id-input" placeholder="Paste ID here...">
-                <button id="join-btn" class="secondary-btn" style="width: 100%;">Connect & Play</button>
+                <div class="btn-group">
+                    <button id="join-btn" class="secondary-btn">Connect & Play</button>
+                    <button id="solo-btn" class="primary-btn" style="background: #10b981; margin-top: 10px;">🏃 Solo Practice</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1188,8 +1194,10 @@
             document.getElementById('crosshair').classList.remove('hidden');
             document.getElementById('connection-status').style.color = "#94a3b8";
             
+            if (state.viewmodel.group) state.viewmodel.group.visible = true;
+            
             // Map RNG Seed Syncing
-            if (state.isHost && !seed) {
+            if (state.isHost && (seed === undefined || seed === null)) {
                 seed = Math.floor(Math.random() * 10000);
             }
             rng = mulberry32(seed);
@@ -1745,6 +1753,7 @@
                 mag: mag,
                 scope: scope
             };
+            group.visible = false; // Hide until match starts
         }
 
         function gameLoop() {
@@ -1784,6 +1793,18 @@
         createViewmodel();
         updateWeaponUI();
         initPeer();
+
+        // Loading Timeout (5 seconds before allowing manual skip)
+        setTimeout(() => {
+            const loading = document.getElementById('loading-screen');
+            if (!loading.classList.contains('hidden')) {
+                console.log("PeerJS initialization taking too long... offering skip.");
+                // Ensure lobby screen is ready if they skip
+                document.getElementById('lobby-screen').classList.remove('hidden');
+                loading.classList.add('hidden');
+            }
+        }, 5000);
+
         gameLoop();
 
         // --- Event Listeners ---
@@ -1856,6 +1877,18 @@
 
         document.getElementById('quick-match-btn').addEventListener('click', () => {
             startQuickMatch();
+        });
+
+        document.getElementById('solo-btn').addEventListener('click', () => {
+            state.connected = false;
+            startMatch(Math.floor(Math.random() * 10000));
+            document.getElementById('connection-status').textContent = "Offline Practice";
+            if(state.opponent.mesh) state.opponent.mesh.visible = false;
+        });
+
+        document.getElementById('skip-to-solo').addEventListener('click', () => {
+             document.getElementById('loading-screen').classList.add('hidden');
+             document.getElementById('lobby-screen').classList.remove('hidden');
         });
 
     </script>
