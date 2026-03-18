@@ -599,7 +599,7 @@
         const PLAYER_SPEED = 0.15;
         const PLAYER_HEIGHT = 1.7;
         const GRAVITY = 0.008;
-        const JUMP_FORCE = 0.35;
+        const JUMP_FORCE = 0.22; // Adjusted for approx 2m jump height (half of box height)
         const ARENA_SIZE = 50;
         const FOV_NORMAL = 75;
         const WEAPONS = {
@@ -648,13 +648,19 @@
             },
             keys: {},
             obstacles: [],
-            bullets: []
+            bullets: [],
+            viewmodel: {
+                group: null,
+                barrel: null,
+                mag: null,
+                scope: null
+            }
         };
 
         // --- Three.js Setup ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f172a);
-        scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
+        scene.background = new THREE.Color(0x1a1a2e); // Deep indigo
+        scene.fog = new THREE.FogExp2(0x16213e, 0.015);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -680,28 +686,42 @@
         // --- Scene Objects ---
         function createArena() {
             // Light
-            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            const ambient = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambient);
             
-            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            const sun = new THREE.DirectionalLight(0xffffff, 1.0);
             sun.position.set(50, 100, 50);
             sun.castShadow = true;
             scene.add(sun);
 
+            // Add some colorful point lights for atmosphere
+            const p1 = new THREE.PointLight(0x3b82f6, 15, 60);
+            p1.position.set(-30, 10, -30);
+            scene.add(p1);
+
+            const p2 = new THREE.PointLight(0xf43f5e, 15, 60);
+            p2.position.set(30, 10, 30);
+            scene.add(p2);
+
             // Floor
             const floorGeo = new THREE.PlaneGeometry(ARENA_SIZE * 2, ARENA_SIZE * 2);
-            const floorMat = new THREE.MeshPhongMaterial({ color: 0x1e293b });
+            // Dynamic colorful floor
+            const floorMat = new THREE.MeshPhongMaterial({ 
+                color: 0x16213e,
+                specular: 0x3b82f6,
+                shininess: 30
+            });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // Grid for scale
-            const grid = new THREE.GridHelper(ARENA_SIZE * 2, 20, 0x334155, 0x1e293b);
+            // Grid for scale - more vibrant
+            const grid = new THREE.GridHelper(ARENA_SIZE * 2, 20, 0x4ecca3, 0x16213e);
             scene.add(grid);
 
-            // Walls (Bounds)
-            const wallMat = new THREE.MeshPhongMaterial({ color: 0x0f172a });
+            // Walls (Bounds) - Neon edges
+            const wallMat = new THREE.MeshPhongMaterial({ color: 0x1a1a2e });
             for(let i=0; i<4; i++) {
                 const wallGeo = new THREE.PlaneGeometry(ARENA_SIZE * 2, 10);
                 const wall = new THREE.Mesh(wallGeo, wallMat);
@@ -713,111 +733,178 @@
                 scene.add(wall);
             }
 
-            // Obstacles
+            // Obstacles - Fixed 3x3 Grid
             const boxGeo = new THREE.BoxGeometry(4, 4, 4);
-            const obstacleMat = new THREE.MeshPhongMaterial({ color: 0x334155 });
             
-            // Clear old obstacles First
+            // Clear old obstacles
             state.obstacles.forEach(obs => scene.remove(obs));
             state.obstacles = [];
 
-            for(let i=0; i<15; i++) {
-                const box = new THREE.Mesh(boxGeo, obstacleMat);
-                box.position.set(
-                    (rng() - 0.5) * (ARENA_SIZE - 10),
-                    2,
-                    (rng() - 0.5) * (ARENA_SIZE - 10)
-                );
-                box.castShadow = true;
-                box.receiveShadow = true;
-                scene.add(box);
-                state.obstacles.push(box);
+            const colors = [0x3b82f6, 0xf43f5e, 0x4ecca3, 0xffbb00, 0x8b5cf6];
+            
+            // 3x3 Grid of boxes
+            for(let row = -1; row <= 1; row++) {
+                for(let col = -1; col <= 1; col++) {
+                    const obstacleMat = new THREE.MeshPhongMaterial({ 
+                        color: colors[Math.abs(row + col * 2) % colors.length],
+                        emissive: colors[Math.abs(row + col * 2) % colors.length],
+                        emissiveIntensity: 0.2
+                    });
+                    const box = new THREE.Mesh(boxGeo, obstacleMat);
+                    box.position.set(
+                        col * 15,
+                        2,
+                        row * 15
+                    );
+                    box.castShadow = true;
+                    box.receiveShadow = true;
+                    scene.add(box);
+                    state.obstacles.push(box);
+
+                    // Add Stairs (2 steps, each 1.33m high)
+                    const stepWidth = 4;
+                    const stepDepth = 2.0;
+                    const stepHeight = 1.33;
+                    const stepGeo = new THREE.BoxGeometry(stepWidth, stepHeight, stepDepth);
+                    
+                    for (let s = 1; s <= 2; s++) {
+                        const step = new THREE.Mesh(stepGeo, obstacleMat);
+                        // Stagger forward
+                        step.position.set(
+                            col * 15,
+                            (s * stepHeight) / 2, // Floor to step 1 (0.66), then step 2 (1.99)
+                            (row * 15) - 2 - (s * stepDepth) + (stepDepth / 2)
+                        );
+                        step.castShadow = true;
+                        step.receiveShadow = true;
+                        scene.add(step);
+                        state.obstacles.push(step);
+                    }
+                }
             }
         }
 
         function createOpponentMesh() {
             const group = new THREE.Group();
             
+            // Materials - Better colors
+            const bodyMat = new THREE.MeshPhongMaterial({ color: 0x3b82f6 }); // Blue suit
+            const skinMat = new THREE.MeshPhongMaterial({ color: 0xffdbac }); // Skin tone
+            const clothingMat = new THREE.MeshPhongMaterial({ color: 0x1e293b }); // Dark pants
+            const weaponMat = new THREE.MeshPhongMaterial({ color: 0x334155, specular: 0x666666 });
+
             // Legs
-            const legGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
-            const legMat = new THREE.MeshPhongMaterial({ color: 0x1e293b });
+            const legGeo = new THREE.CapsuleGeometry(0.12, 0.6, 4, 8);
             
-            const leftLeg = new THREE.Mesh(legGeo, legMat);
-            leftLeg.position.set(-0.15, -0.75, 0); // Relative to torso center
+            const leftLeg = new THREE.Mesh(legGeo, clothingMat);
+            leftLeg.position.set(-0.18, -0.4, 0); 
             leftLeg.castShadow = true;
             
-            const rightLeg = new THREE.Mesh(legGeo, legMat);
-            rightLeg.position.set(0.15, -0.75, 0);
+            const rightLeg = new THREE.Mesh(legGeo, clothingMat);
+            rightLeg.position.set(0.18, -0.4, 0);
             rightLeg.castShadow = true;
 
-            // Torso
-            const torsoGeo = new THREE.BoxGeometry(0.5, 0.7, 0.3);
-            const torsoMat = new THREE.MeshPhongMaterial({ 
-                color: 0x3b82f6,
-                emissive: 0x3b82f6,
-                emissiveIntensity: 0.3
-            });
-            const torso = new THREE.Mesh(torsoGeo, torsoMat);
-            torso.position.set(0, 0, 0);
-            torso.castShadow = true;
-            group.add(torso);
-
-            // Pivots for animation
             const leftLegPivot = new THREE.Group();
-            leftLegPivot.position.set(0, 0.75, 0); // Position at hip
+            leftLegPivot.position.set(0, -0.2, 0); // Hip level
             leftLegPivot.add(leftLeg);
             group.add(leftLegPivot);
 
             const rightLegPivot = new THREE.Group();
-            rightLegPivot.position.set(0, 0.75, 0);
+            rightLegPivot.position.set(0, -0.2, 0);
             rightLegPivot.add(rightLeg);
             group.add(rightLegPivot);
 
+            // Torso - Tapered
+            const torsoGeo = new THREE.CapsuleGeometry(0.25, 0.5, 4, 8);
+            const torso = new THREE.Mesh(torsoGeo, bodyMat);
+            torso.position.set(0, 0.2, 0);
+            torso.castShadow = true;
+            group.add(torso);
+
             // Arms
-            const armGeo = new THREE.BoxGeometry(0.2, 0.7, 0.2);
-            const leftArm = new THREE.Mesh(armGeo, torsoMat);
-            leftArm.position.set(-0.35, 0, 0);
+            const armGeo = new THREE.CapsuleGeometry(0.08, 0.5, 4, 8);
+            
+            const leftArm = new THREE.Mesh(armGeo, bodyMat);
+            leftArm.position.set(-0.35, 0.2, 0);
             leftArm.castShadow = true;
             group.add(leftArm);
             
             const rightArmPivot = new THREE.Group();
-            rightArmPivot.position.set(0.35, 0.2, 0); // Shoulder
-            const rightArm = new THREE.Mesh(armGeo, torsoMat);
-            rightArm.position.set(0, -0.2, 0);
+            rightArmPivot.position.set(0.35, 0.45, 0); // Shoulder
+            const rightArm = new THREE.Mesh(armGeo, bodyMat);
+            rightArm.position.set(0, -0.25, 0.1);
+            rightArm.rotation.x = -Math.PI / 4;
             rightArm.castShadow = true;
             rightArmPivot.add(rightArm);
             group.add(rightArmPivot);
 
-            // Weapon Mesh
-            const weaponGeo = new THREE.BoxGeometry(0.15, 0.2, 0.8);
-            const weaponMat = new THREE.MeshPhongMaterial({ color: 0x334155 });
-            const weaponMesh = new THREE.Mesh(weaponGeo, weaponMat);
-            weaponMesh.position.set(0, -0.4, 0.4);
-            rightArmPivot.add(weaponMesh);
+            // Weapon Group (More detailed)
+            const weaponGroup = new THREE.Group();
+            
+            // Base Body
+            const baseGeo = new THREE.BoxGeometry(0.12, 0.18, 0.5);
+            const base = new THREE.Mesh(baseGeo, weaponMat);
+            weaponGroup.add(base);
+
+            // Barrel
+            const barrelGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.6);
+            barrelGeo.rotateX(Math.PI / 2);
+            const barrel = new THREE.Mesh(barrelGeo, weaponMat);
+            barrel.position.z = 0.4;
+            barrel.name = 'barrel';
+            weaponGroup.add(barrel);
+
+            // Magazine
+            const magGeo = new THREE.BoxGeometry(0.08, 0.25, 0.12);
+            const mag = new THREE.Mesh(magGeo, weaponMat);
+            mag.position.set(0, -0.15, 0.1);
+            mag.name = 'mag';
+            weaponGroup.add(mag);
+
+            // Scope
+            const scopeGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.2);
+            scopeGeo.rotateX(Math.PI / 2);
+            const scope = new THREE.Mesh(scopeGeo, weaponMat);
+            scope.position.set(0, 0.12, 0);
+            scope.name = 'scope';
+            weaponGroup.add(scope);
+
+            weaponGroup.position.set(0, -0.4, 0.4);
+            weaponGroup.rotation.x = Math.PI / 6;
+            rightArmPivot.add(weaponGroup);
 
             // Head
-            const headGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
-            const headMat = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-            const head = new THREE.Mesh(headGeo, headMat);
-            head.position.set(0, 0.525, 0);
+            const headGeo = new THREE.SphereGeometry(0.2, 16, 16);
+            const head = new THREE.Mesh(headGeo, skinMat);
+            head.position.set(0, 0.75, 0);
             head.name = 'head';
             head.castShadow = true;
             group.add(head);
 
-            // Bright Indicator
-            const arrowGeo = new THREE.ConeGeometry(0.2, 0.4, 4);
+            // Mask/Eyes indicator
+            const visorGeo = new THREE.BoxGeometry(0.3, 0.1, 0.1);
+            const visorMat = new THREE.MeshBasicMaterial({ color: 0x334155 });
+            const visor = new THREE.Mesh(visorGeo, visorMat);
+            visor.position.set(0, 0, 0.15);
+            head.add(visor);
+
+            // Bright Indicator (Arrow above head)
+            const arrowGeo = new THREE.ConeGeometry(0.15, 0.3, 4);
             const arrowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             const arrow = new THREE.Mesh(arrowGeo, arrowMat);
             arrow.rotation.x = Math.PI;
-            arrow.position.set(0, 0.9, 0);
+            arrow.position.set(0, 1.2, 0);
             group.add(arrow);
 
             state.opponent.parts = {
-                leftLeg: leftLeg,
-                rightLeg: rightLeg,
+                leftLegPivot: leftLegPivot,
+                rightLegPivot: rightLegPivot,
                 leftArm: leftArm,
                 rightArmPivot: rightArmPivot,
-                weapon: weaponMesh
+                weapon: weaponGroup,
+                barrel: barrel,
+                mag: mag,
+                scope: scope
             };
 
             scene.add(group);
@@ -1260,6 +1347,42 @@
             // Update crosshair class
             const crosshair = document.getElementById('crosshair');
             crosshair.className = state.me.weapon.toLowerCase();
+
+            // Update viewmodel visuals
+            if (state.viewmodel.group) {
+                const w = state.me.weapon;
+                const vm = state.viewmodel;
+                
+                vm.scope.visible = true;
+                vm.mag.visible = true;
+                vm.barrel.scale.set(1, 1, 1);
+                vm.group.scale.set(1, 1, 1);
+
+                if (w === 'SHOTGUN') {
+                    vm.group.scale.set(1.4, 1.2, 1.0);
+                    vm.barrel.scale.set(1.8, 1.4, 0.8);
+                    vm.scope.visible = false;
+                    vm.mag.visible = false;
+                } else if (w === 'SNIPER') {
+                    vm.group.scale.set(0.9, 0.9, 1.5);
+                    vm.barrel.scale.set(0.8, 0.8, 2.0);
+                    vm.scope.scale.set(1.2, 1.2, 2.0);
+                } else if (w === 'SMG') {
+                    vm.group.scale.set(0.9, 0.8, 0.7);
+                    vm.barrel.scale.set(0.7, 0.7, 0.4);
+                    vm.scope.visible = false;
+                } else if (w === 'ROCKET') {
+                    vm.group.scale.set(1.8, 1.8, 2.2);
+                    vm.barrel.scale.set(2.5, 2.5, 1.0);
+                    vm.scope.scale.set(1.5, 1.5, 0.5);
+                    vm.mag.visible = false;
+                } else if (w === 'MINIGUN') {
+                    vm.group.scale.set(1.5, 1.8, 1.5);
+                    vm.barrel.scale.set(2.2, 2.2, 1.2);
+                    vm.scope.visible = false;
+                    vm.mag.scale.set(2.0, 1.0, 1.5);
+                }
+            }
         }
 
         function switchWeapon(dir) {
@@ -1467,28 +1590,47 @@
                     parts.leftArm.rotation.x = -swing;
                 }
 
-                // Update weapon visual
+                // Update weapon visual based on type
                 if (state.opponent.parts.weapon) {
                     const w = state.opponent.weapon;
-                    const isShotgun = w === 'SHOTGUN';
-                    const isSniper = w === 'SNIPER';
-                    const isSMG = w === 'SMG';
+                    const parts = state.opponent.parts;
                     
-                    if (isShotgun) {
-                        state.opponent.parts.weapon.scale.set(1.5, 1, 0.8);
-                        state.opponent.parts.weapon.material.color.setHex(0x64748b);
-                    } else if (isSniper) {
-                        state.opponent.parts.weapon.scale.set(0.8, 0.8, 1.8);
-                        state.opponent.parts.weapon.material.color.setHex(0x1e293b);
-                    } else if (isSMG) {
-                        state.opponent.parts.weapon.scale.set(1, 0.8, 0.6);
-                        state.opponent.parts.weapon.material.color.setHex(0x475569);
+                    // Reset visibility
+                    parts.scope.visible = true;
+                    parts.mag.visible = true;
+                    parts.barrel.scale.set(1, 1, 1);
+                    parts.weapon.scale.set(1, 1, 1);
+
+                    if (w === 'SHOTGUN') {
+                        parts.weapon.scale.set(1.4, 1.2, 1.0);
+                        parts.barrel.scale.set(1.8, 1.4, 0.8);
+                        parts.scope.visible = false;
+                        parts.mag.visible = false;
+                        parts.barrel.material.color.setHex(0x64748b);
+                    } else if (w === 'SNIPER') {
+                        parts.weapon.scale.set(0.9, 0.9, 1.5);
+                        parts.barrel.scale.set(0.8, 0.8, 2.0);
+                        parts.scope.scale.set(1.2, 1.2, 2.0);
+                        parts.barrel.material.color.setHex(0x1e293b);
+                    } else if (w === 'SMG') {
+                        parts.weapon.scale.set(0.9, 0.8, 0.7);
+                        parts.barrel.scale.set(0.7, 0.7, 0.4);
+                        parts.scope.visible = false;
+                        parts.barrel.material.color.setHex(0x475569);
                     } else if (w === 'ROCKET') {
-                        state.opponent.parts.weapon.scale.set(1.2, 1.2, 2.0);
-                        state.opponent.parts.weapon.material.color.setHex(0x064e3b);
+                        parts.weapon.scale.set(1.8, 1.8, 2.2);
+                        parts.barrel.scale.set(2.5, 2.5, 1.0);
+                        parts.scope.scale.set(1.5, 1.5, 0.5);
+                        parts.mag.visible = false;
+                        parts.barrel.material.color.setHex(0x064e3b);
+                    } else if (w === 'MINIGUN') {
+                        parts.weapon.scale.set(1.5, 1.8, 1.5);
+                        parts.barrel.scale.set(2.2, 2.2, 1.2);
+                        parts.scope.visible = false;
+                        parts.mag.scale.set(2.0, 1.0, 1.5);
+                        parts.barrel.material.color.setHex(0x334155);
                     } else { // AR
-                        state.opponent.parts.weapon.scale.set(1, 1, 1);
-                        state.opponent.parts.weapon.material.color.setHex(0x334155);
+                        parts.barrel.material.color.setHex(0x334155);
                     }
                 }
             }
@@ -1564,7 +1706,73 @@
             }
         }
 
+        function createViewmodel() {
+            const group = new THREE.Group();
+            const weaponMat = new THREE.MeshPhongMaterial({ color: 0x334155, specular: 0x666666 });
+
+            // Base Body
+            const baseGeo = new THREE.BoxGeometry(0.12, 0.18, 0.5);
+            const base = new THREE.Mesh(baseGeo, weaponMat);
+            group.add(base);
+
+            // Barrel
+            const barrelGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.6);
+            barrelGeo.rotateX(Math.PI / 2);
+            const barrel = new THREE.Mesh(barrelGeo, weaponMat);
+            barrel.position.z = 0.4;
+            group.add(barrel);
+
+            // Magazine
+            const magGeo = new THREE.BoxGeometry(0.08, 0.25, 0.12);
+            const mag = new THREE.Mesh(magGeo, weaponMat);
+            mag.position.set(0, -0.15, 0.1);
+            group.add(mag);
+
+            // Scope
+            const scopeGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.2);
+            scopeGeo.rotateX(Math.PI / 2);
+            const scope = new THREE.Mesh(scopeGeo, weaponMat);
+            scope.position.set(0, 0.12, 0);
+            group.add(scope);
+
+            group.position.set(0.3, -0.3, -0.6); // Position relative to camera
+            camera.add(group);
+            scene.add(camera); // Ensure camera is in scene for nested light/shadows
+
+            state.viewmodel = {
+                group: group,
+                barrel: barrel,
+                mag: mag,
+                scope: scope
+            };
+        }
+
         function gameLoop() {
+            // Viewmodel bobbing
+            if (state.viewmodel.group && state.running) {
+                const now = Date.now();
+                const vel = state.me.vel.length() + state.me.pos.distanceTo(state.me.pos.clone()); // Simplistic check
+                // Actually easier to just check keys or current direction
+                const isMoving = state.keys['KeyW'] || state.keys['KeyS'] || state.keys['KeyA'] || state.keys['KeyD'];
+                
+                if (isMoving && state.me.onGround) {
+                    const bob = Math.sin(now * 0.01) * 0.02;
+                    state.viewmodel.group.position.y = -0.3 + bob;
+                    state.viewmodel.group.position.x = 0.3 + Math.cos(now * 0.005) * 0.01;
+                } else {
+                    state.viewmodel.group.position.y = THREE.MathUtils.lerp(state.viewmodel.group.position.y, -0.3, 0.1);
+                    state.viewmodel.group.position.x = THREE.MathUtils.lerp(state.viewmodel.group.position.x, 0.3, 0.1);
+                }
+
+                // Smooth recoil / kick
+                if (now - state.me.lastShot < 100) {
+                    const kick = (100 - (now - state.me.lastShot)) / 1500;
+                    state.viewmodel.group.position.z = -0.6 + kick;
+                } else {
+                    state.viewmodel.group.position.z = THREE.MathUtils.lerp(state.viewmodel.group.position.z, -0.6, 0.2);
+                }
+            }
+
             update();
             renderer.render(scene, camera);
             requestAnimationFrame(gameLoop);
@@ -1573,6 +1781,8 @@
         // --- Initialization ---
         createArena();
         state.opponent.mesh = createOpponentMesh();
+        createViewmodel();
+        updateWeaponUI();
         initPeer();
         gameLoop();
 
