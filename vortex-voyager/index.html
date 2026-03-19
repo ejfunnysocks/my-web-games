@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vortex Voyager | Arcade Hub</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+        
+        :root {
+            --primary: #6366f1;
+            --accent: #f43f5e;
+            --bg: #020617;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            min-height: 100vh;
+            overflow-y: auto;
+            padding: 40px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(2, 6, 23, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden { opacity: 0; pointer-events: none; }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: -2px;
+            background: linear-gradient(to bottom, #fff, var(--primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+
+        .btn {
+            padding: 1rem 2.5rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            background: var(--primary);
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.5);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(99, 102, 241, 0.6);
+        }
+
+        .portal-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 0.6rem 1.2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 100px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            z-index: 110;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+
+        .portal-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+        #score-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+            z-index: 90;
+        }
+
+        #speed-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 100px;
+            overflow: hidden;
+            z-index: 90;
+        }
+
+        #speed-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            transition: width 0.1s;
+        }
+
+        #best-bar-container {
+            position: absolute;
+            right: 15px;
+            top: 100px;
+            bottom: 100px;
+            width: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            z-index: 90;
+        }
+
+        #best-bar-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, var(--primary), var(--accent));
+            box-shadow: 0 0 15px var(--primary);
+            transition: height 0.3s;
+        }
+
+        #best-label {
+            position: absolute;
+            right: 35px;
+            bottom: 100px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            transform: rotate(-90deg);
+            transform-origin: right bottom;
+            white-space: nowrap;
+        }
+        
+        #player-marker {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            background: #fff;
+            border-radius: 50%;
+            bottom: 60px; /* Adjust via JS */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            box-shadow: 0 0 30px #6366f1;
+            pointer-events: none;
+        }
+
+        /* Speed Lines VFX */
+        #vfx-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Info Button & Overlay */
+        #info-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 120;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(10, 10, 10, 0.6);
+            border: 1.5px solid var(--primary);
+            color: var(--primary);
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        #info-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            transform: scale(1.1);
+        }
+        #info-game-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            padding: 20px;
+        }
+        #info-game-overlay.visible { display: flex; }
+        .info-card {
+            background: #0f172a;
+            border: 1px solid var(--primary);
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 450px;
+            width: 100%;
+            position: relative;
+            box-shadow: 0 0 50px rgba(99, 102, 241, 0.3);
+        }
+        .info-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .info-card h2 { margin-top: 0; color: white; display: flex; align-items: center; gap: 10px; }
+        .info-section { color: var(--primary); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; margin-top: 1.5rem; display: block; }
+        .info-card p { color: #94a3b8; margin: 0.5rem 0; font-size: 0.95rem; line-height: 1.5; }
+
+        /* Pause Overlay */
+        #pause-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 250;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #pause-overlay.visible { display: flex; }
+        #pause-overlay h2 {
+            color: var(--primary);
+            font-size: 4rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 30px var(--primary);
+            letter-spacing: 8px;
+        }
+        .pause-btn {
+            padding: 1rem 3rem;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            font-weight: 700;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .pause-btn:hover {
+            transform: scale(1.1) translateY(-5px);
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <a href="../" class="portal-btn">← Arcade Hub</a>
+        <div id="score-display">0</div>
+        <div id="speed-bar"><div id="speed-fill"></div></div>
+        <div id="best-bar-container"><div id="best-bar-fill"></div></div>
+        <div id="best-label">Best: 0</div>
+        <div id="vfx-overlay"></div>
+        <button id="info-btn">i</button>
+        <div id="info-game-overlay">
+            <div class="info-card">
+                <button class="info-close" id="close-info">&times;</button>
+                <h2>🌀 Vortex Voyager</h2>
+                <span class="info-section">Goal</span>
+                <p>Survive as long as possible while plummeting down a procedurally generated neon tunnel. Dodge the red wall segments — touching one ends your run.</p>
+                <span class="info-section">Controls</span>
+                <p><strong>Rotate the tunnel:</strong> Click and drag left/right, press ← / → arrow keys, or touch and swipe. Your ship stays fixed at the bottom center — you rotate the world instead.</p>
+                <span class="info-section">How it works</span>
+                <p>The tunnel rings scroll toward you continuously, getting faster as your distance increases. Obstacle rings have red jagged wall segments that block part of the ring's opening — rotate so the gap lines up with your ship's position (bottom center). Your score increases for every ring you pass through.</p>
+            </div>
+        </div>
+        <div id="player-marker"></div>
+        <div id="pause-overlay">
+            <h2>PAUSED</h2>
+            <button class="pause-btn" id="resume-btn">Resume</button>
+        </div>
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Menu Overlay -->
+        <div id="menu-overlay" class="overlay">
+            <h1>Vortex<br>Voyager</h1>
+            <p style="margin-bottom: 2rem; color: #94a3b8; text-align: center; max-width: 80%;">Drag or swipe to rotate while falling. Use ← → arrow keys or drag to dodge the blocks!</p>
+            <button id="start-btn" class="btn">Descent</button>
+        </div>
+
+        <!-- Game Over Overlay -->
+        <div id="game-over-overlay" class="overlay hidden">
+            <h1 style="color: var(--accent); background: none; -webkit-text-fill-color: var(--accent);">Crash!</h1>
+            <p id="final-score" style="font-size: 1.5rem; margin-bottom: 2rem;">Score: 0</p>
+            <button id="restart-btn" class="btn">Go Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score-display');
+        const speedFill = document.getElementById('speed-fill');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const gameOverOverlay = document.getElementById('game-over-overlay');
+        const finalScoreEl = document.getElementById('final-score');
+        const vfxOverlay = document.getElementById('vfx-overlay');
+
+        let width, height;
+        const playerMarker = document.getElementById('player-marker');
+        function resize() {
+            width = canvas.width = canvas.offsetWidth;
+            height = canvas.height = canvas.offsetHeight;
+            // Update player marker Y to match ring radius 400 at width 500
+            const ringRadiusAtEdge = (width / 2) * 2.0; // matches scale in draw 
+            // Better: just fix it to a good looking spot and make collision match
+            playerMarker.style.bottom = '80px';
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Constants
+        const TUNNEL_LAYERS = 25;
+        const LAYER_SPACING = 0.4;
+        const ROTATION_SENSITIVITY = 0.008;
+
+        // State
+        const state = {
+            running: false,
+            paused: false,
+            score: 0,
+            distance: 0,
+            speed: 0.05,
+            targetSpeed: 0.05,
+            rotation: 0,
+            targetRotation: 0,
+            playerAngle: Math.PI / 2,
+            layers: [], // Tunnel rings/objects
+            lastTime: 0,
+            particles: [],
+            best: parseInt(localStorage.getItem('vortex_best')) || 0
+        };
+
+        // Utility
+        const random = (min, max) => Math.random() * (max - min) + min;
+
+        // --- SFX Engine ---
+        class SFXManager {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            play(type) {
+                if (!this.enabled || !this.ctx) return;
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                switch(type) {
+                    case 'swish':
+                        osc.frequency.setValueAtTime(200, now);
+                        osc.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+                        gain.gain.setValueAtTime(0.05, now);
+                        gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                        osc.start(); osc.stop(now + 0.2);
+                        break;
+                    case 'ring':
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(800, now);
+                        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                        gain.gain.setValueAtTime(0.1, now);
+                        gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                        osc.start(); osc.stop(now + 0.3);
+                        break;
+                    case 'crash':
+                        this.playNoise(now, 0.5, 0.3);
+                        break;
+                }
+            }
+            playNoise(time, duration, volume) {
+                const bufferSize = this.ctx.sampleRate * duration;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(volume, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+                noise.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start(time); noise.stop(time + duration);
+            }
+        }
+        const sfx = new SFXManager();
+
+        // --- Particle System ---
+        class ParticleSystem {
+            constructor() { this.particles = []; }
+            spawn(x, y, color, count = 10) {
+                for (let i = 0; i < count; i++) {
+                    this.particles.push({
+                        x, y,
+                        vx: random(-5, 5),
+                        vy: random(-5, 5),
+                        size: random(2, 5),
+                        life: 1.0,
+                        decay: random(0.02, 0.05),
+                        color: color || '#fff'
+                    });
+                }
+            }
+            update() {
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx; p.y += p.vy;
+                    p.life -= p.decay;
+                    if (p.life <= 0) this.particles.splice(i, 1);
+                }
+            }
+            draw() {
+                this.particles.forEach(p => {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.globalAlpha = 1.0;
+            }
+        }
+        const particles = new ParticleSystem();
+
+        // --- Tunnel Logic ---
+        function createLayer(z) {
+            const obstacles = [];
+            const isObstacleLayer = Math.random() < 0.4 && z > 2;
+            if (isObstacleLayer) {
+                const count = Math.floor(random(1, 3));
+                for(let i=0; i<count; i++) {
+                    obstacles.push({
+                        type: 'wall',
+                        angle: random(0, Math.PI * 2),
+                        width: random(Math.PI / 4, Math.PI / 2)
+                    });
+                }
+            }
+
+            return { z, obstacles };
+        }
+
+        function initTunnel() {
+            state.layers = [];
+            for (let i = 0; i < TUNNEL_LAYERS; i++) {
+                state.layers.push(createLayer(i * LAYER_SPACING));
+            }
+        }
+
+        // --- Core Loop ---
+        function update(dt) {
+            // Arrow key rotation
+            const KEY_ROT_SPEED = 0.06;
+            if (state.keys['ArrowLeft'])  state.targetRotation -= KEY_ROT_SPEED * dt;
+            if (state.keys['ArrowRight']) state.targetRotation += KEY_ROT_SPEED * dt;
+
+            // Rotation smoothing
+            state.rotation += (state.targetRotation - state.rotation) * 0.1 * dt;
+            
+            // Speed progression
+            state.targetSpeed = 0.05 + (state.distance * 0.0001);
+            state.speed += (state.targetSpeed - state.speed) * 0.01 * dt;
+            state.distance += state.speed * dt;
+
+            // Update layers
+            for (let i = state.layers.length - 1; i >= 0; i--) {
+                const layer = state.layers[i];
+                layer.z -= state.speed * dt;
+
+                if (layer.z < 0.1) {
+                    // Collision Check
+                    layer.obstacles.forEach(obs => {
+                        const relAngle = ((obs.angle + state.rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+                        const playerAngle = Math.PI / 2; // Bottom center
+                        
+                        // Improved collision: check player width
+                        const playerAngularWidth = 0.15; // Approximate angular width of ball
+                        const diff = Math.abs(relAngle - playerAngle);
+                        const normalizedDiff = Math.min(diff, Math.PI * 2 - diff);
+                        
+                        if (normalizedDiff < (obs.width / 2 + playerAngularWidth)) {
+                            if (obs.type === 'wall') {
+                                endGame();
+                            } else if (obs.type === 'ring') {
+                                state.score += 50;
+                                state.speed += 0.02; // Boost
+                                sfx.play('ring');
+                                particles.spawn(width/2, height/2 + 100, '#6366f1', 20);
+                                // Remove ring once hit
+                                layer.obstacles = [];
+                            }
+                        }
+                    });
+
+                    // Recycle layer
+                    state.layers.splice(i, 1);
+                    state.layers.push(createLayer(TUNNEL_LAYERS * LAYER_SPACING));
+                    state.score++;
+                }
+            }
+
+            scoreEl.textContent = state.score;
+            updateBestBar();
+            speedFill.style.width = Math.min(100, (state.speed / 0.2) * 100) + '%';
+            particles.update();
+        }
+
+        function updateBestBar() {
+            const fill = document.getElementById('best-bar-fill');
+            const label = document.getElementById('best-label');
+            const best = state.best;
+            
+            if (best === 0) {
+                fill.style.height = '0%';
+                label.textContent = 'Best: 0';
+            } else {
+                const percent = Math.min(100, (state.score / best) * 100);
+                fill.style.height = percent + '%';
+                label.textContent = `Best: ${best}`;
+                if (state.score > best) {
+                    label.style.color = 'var(--accent)';
+                    label.textContent = `NEW BEST: ${state.score}!`;
+                } else {
+                    label.style.color = '#94a3b8';
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Draw layers from back to front
+            for (let i = state.layers.length - 1; i >= 0; i--) {
+                const layer = state.layers[i];
+                // Exponential scaling for better depth feel
+                const scale = Math.pow(1.5, -layer.z); 
+                const radius = width * scale * 0.8;
+                const alpha = Math.max(0, 1 - layer.z / 8);
+
+                if (radius < 2) continue;
+
+                if (radius < 2) continue;
+
+                // Draw Obstacles
+                layer.obstacles.forEach(obs => {
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(obs.angle + state.rotation);
+                    
+                    if (obs.type === 'wall') {
+                        ctx.strokeStyle = `rgba(244, 63, 94, ${alpha})`;
+                        ctx.lineWidth = Math.max(2, 18 * scale);
+                        
+                        // Draw jagged arc (MORE SPIKY)
+                        ctx.beginPath();
+                        const steps = 12;
+                        const startA = -obs.width/2;
+                        const endA = obs.width/2;
+                        for(let j=0; j<=steps; j++) {
+                            const a = startA + (endA - startA) * (j/steps);
+                            // Random-ish spike depth
+                            const spike = (j % 2 === 0 ? 12 : -8) * scale * 0.4;
+                            const r = radius + spike;
+                            const px = Math.cos(a) * r;
+                            const py = Math.sin(a) * r;
+                            if (j === 0) ctx.moveTo(px, py);
+                            else ctx.lineTo(px, py);
+                        }
+                        ctx.stroke();
+                        
+                        // Inner "electric" line
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                        ctx.lineWidth = 0.5 * alpha;
+                        ctx.stroke();
+                        
+                        // Add intense glow
+                        ctx.shadowBlur = 30 * alpha;
+                        ctx.shadowColor = '#f43f5e';
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                    ctx.shadowBlur = 0;
+                });
+            }
+
+            // The actual player is now a DOM element for better glow effects
+            ctx.shadowBlur = 0;
+
+            particles.draw();
+        }
+
+        function togglePause() {
+            if (!state.running) return;
+            state.paused = !state.paused;
+            document.getElementById('pause-overlay').classList.toggle('visible', state.paused);
+            if (!state.paused) {
+                state.lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!state.running || state.paused) return;
+            const rawDt = timestamp - state.lastTime;
+            state.lastTime = timestamp;
+            const dt = Math.min(rawDt / 16.67, 2.0); // normalize to 60fps, cap at 2x
+            
+            update(dt);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Controls ---
+        let lastX = 0;
+        let isDragging = false;
+        state.keys = {};
+
+        // Arrow keys
+        window.addEventListener('keydown', e => {
+            state.keys[e.code] = true;
+            // Prevent page scrolling with arrow keys while game is running
+            if (state.running && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) e.preventDefault();
+        });
+        window.addEventListener('keyup', e => { state.keys[e.code] = false; });
+
+        function onStart(x) {
+            if (!state.running && menuOverlay.classList.contains('hidden')) return;
+            isDragging = true;
+            lastX = x;
+            sfx.init();
+        }
+        function onMove(x) {
+            if (!isDragging) return;
+            const dx = x - lastX;
+            state.targetRotation += dx * ROTATION_SENSITIVITY;
+            lastX = x;
+            if (Math.abs(dx) > 5) sfx.play('swish');
+        }
+        function onEnd() { isDragging = false; }
+
+        canvas.addEventListener('mousedown', e => onStart(e.clientX));
+        window.addEventListener('mousemove', e => onMove(e.clientX));
+        window.addEventListener('mouseup', onEnd);
+
+        canvas.addEventListener('touchstart', e => onStart(e.touches[0].clientX));
+        window.addEventListener('touchmove', e => onMove(e.touches[0].clientX));
+        window.addEventListener('touchend', onEnd);
+
+        // --- State Management ---
+        function startDescent() {
+            state.running = true;
+            state.paused = false;
+            document.getElementById('pause-overlay').classList.remove('visible');
+            menuOverlay.classList.add('hidden');
+            gameOverOverlay.classList.add('hidden');
+            state.score = 0;
+            state.distance = 0;
+            state.speed = 0.05;
+            state.rotation = 0;
+            state.targetRotation = 0;
+            initTunnel();
+            updateBestBar();
+            state.lastTime = performance.now();
+        }
+
+        function endGame() {
+            state.running = false;
+            sfx.play('crash');
+            if (state.score > state.best) {
+                state.best = state.score;
+                localStorage.setItem('vortex_best', state.best);
+            }
+            finalScoreEl.textContent = `Score: ${state.score}`;
+            gameOverOverlay.classList.remove('hidden');
+        }
+
+        document.getElementById('start-btn').addEventListener('click', startDescent);
+        document.getElementById('restart-btn').addEventListener('click', startDescent);
+
+        requestAnimationFrame(gameLoop);
+        document.getElementById('info-btn').addEventListener('click', () => {
+            if (state.running && !state.paused) togglePause();
+            document.getElementById('info-game-overlay').classList.add('visible');
+        });
+        document.getElementById('close-info').addEventListener('click', () => {
+            document.getElementById('info-game-overlay').classList.remove('visible');
+            if (state.running && state.paused) togglePause();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Escape') togglePause();
+        });
+        document.getElementById('resume-btn').addEventListener('click', togglePause);
+    </script>
+</body>
+</html>

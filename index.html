@@ -3,61 +3,771 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Web Games</title>
+    <title>Arcade Hub | Premium Web Games</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+
+        :root {
+            --primary: #4a90e2;
+            --accent: #eab308;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background-color: #1a1a1a;
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(74, 144, 226, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(234, 179, 8, 0.1) 0%, transparent 40%);
             color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 5vh 2rem 10vh 2rem;
+            overflow-y: scroll;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Particles Background */
+        .bg-particles {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.3;
+            filter: blur(1px);
+            animation: float-around linear infinite;
+        }
+
+        @keyframes float-around {
+            from { transform: translateY(0) rotate(0deg); opacity: 0; }
+            20% { opacity: 0.3; }
+            80% { opacity: 0.3; }
+            to { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            text-align: center;
+            z-index: 1;
+        }
+
+        h1 {
+            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #94a3b8;
+            margin-bottom: 3rem;
+            max-width: 600px;
+            margin-inline: auto;
+        }
+
+        /* Mobile Mode Toggle */
+        .controls {
+            margin-bottom: 4rem;
+            display: none; /* Hidden by default, shown via JS on mobile */
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1rem 2rem;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 100px;
+            width: fit-content;
+            margin-inline: auto;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle-label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #cbd5e1;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 4px; bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        .switch.disabled { opacity: 0.5; pointer-events: none; }
+
+        /* Game Cards */
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            width: 100%;
+        }
+
+        .game-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2.5rem;
+            text-decoration: none;
+            color: white;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
+            min-height: 280px;
         }
-        h1 {
-            color: #4a90e2;
-            font-size: 3rem;
-            margin-bottom: 40px;
-            text-shadow: 0 4px 6px rgba(0,0,0,0.3);
+
+        .play-hint {
+            margin-top: 1.5rem;
+            padding: 0.6rem 1.5rem;
+            background: var(--primary);
+            border-radius: 100px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
         }
-        .game-link {
+
+        .game-card:hover .play-hint {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .game-card.star-catcher .play-hint {
+            background: var(--accent);
+            color: #0f172a;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.03) 100%);
+            transition: opacity 0.4s;
+        }
+
+        .game-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px -10px rgba(74, 144, 226, 0.2);
+        }
+
+        .game-card.star-catcher:hover {
+            border-color: var(--accent);
+            box-shadow: 0 20px 40px -10px rgba(234, 179, 8, 0.2);
+        }
+
+        .game-card.vortex-voyager:hover {
+            border-color: #6366f1;
+            box-shadow: 0 20px 40px -10px rgba(99, 102, 241, 0.2);
+        }
+
+        .game-card.ninja-dash:hover {
+            border-color: #fbbf24;
+            box-shadow: 0 20px 40px -10px rgba(251, 191, 36, 0.2);
+        }
+
+        .game-card.frag-duel:hover {
+            border-color: #f43f5e;
+            box-shadow: 0 20px 40px -10px rgba(244, 63, 94, 0.2);
+        }
+
+        .game-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            transition: transform 0.4s;
+        }
+
+        .game-card:hover .game-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .game-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .game-desc {
+            font-size: 1rem;
+            color: #94a3b8;
+        }
+
+        .badge {
+            position: absolute;
+            top: 1.5rem; right: 1.5rem;
+            padding: 0.4rem 1rem;
+            background: rgba(255,255,255,0.1);
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        @media (max-width: 640px) {
+            .games-grid { grid-template-columns: 1fr; }
+            h1 { font-size: 3rem; }
+            .container { padding-bottom: 4rem; }
+        }
+
+        footer {
+            margin-top: 4rem;
+            padding: 2rem;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
+            border-top: 1px solid var(--glass-border);
+            width: 100%;
+            z-index: 1;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .footer-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        /* Overlays */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(12px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .overlay-content {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            padding: 3rem;
+            border-radius: 32px;
+            max-width: 600px;
+            width: 100%;
+            position: relative;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .close-overlay {
+            position: absolute;
+            top: 1.5rem; right: 1.5rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: white;
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #333;
-            color: #fff;
-            text-decoration: none;
-            padding: 20px 40px;
-            margin: 10px;
-            border-radius: 12px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            width: 300px;
+            font-size: 1.2rem;
             transition: all 0.2s;
-            border: 2px solid #555;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-        .game-link:hover {
-            background: #4a90e2;
-            border-color: #6fb3ff;
-            transform: translateY(-5px);
-            box-shadow: 0 8px 15px rgba(74, 144, 226, 0.4);
+
+        .close-overlay:hover {
+            background: rgba(255,255,255,0.1);
+            transform: rotate(90deg);
         }
-        .game-link.star-catcher:hover {
-            background: #eab308;
-            border-color: #fde047;
-            box-shadow: 0 8px 15px rgba(234, 179, 8, 0.4);
+
+        .overlay h2 {
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, #fff, var(--primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .overlay p {
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        /* Instructions Button */
+        .instructions-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.5rem;
+            margin-bottom: 1.5rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 100px;
+            color: #94a3b8;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            letter-spacing: 0.02em;
+        }
+        .instructions-btn:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: var(--primary);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -5px rgba(74, 144, 226, 0.25);
+        }
+
+        /* Instructions Overlay specifics */
+        #instructions-overlay .overlay-content {
+            max-width: 680px;
+            max-height: 85vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+        .instr-game {
+            margin-bottom: 1.8rem;
+            padding: 1.2rem 1.4rem;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+        }
+        .instr-game:last-child { margin-bottom: 0; }
+        .instr-game-header {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            margin-bottom: 0.8rem;
+        }
+        .instr-game-icon { font-size: 1.6rem; }
+        .instr-game-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: white;
+        }
+        .instr-game p {
+            color: #94a3b8;
+            font-size: 0.92rem;
+            line-height: 1.6;
+            margin-bottom: 0.5rem;
+        }
+        .instr-game p:last-child { margin-bottom: 0; }
+        .instr-game strong { color: #cbd5e1; }
+        .instr-section-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--primary);
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            display: block;
+        }
+
+        /* Star Ratings */
+        .star-rating {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-top: 0.6rem;
+        }
+        .star-rating .star {
+            font-size: 1rem;
+            color: #334155;
+            transition: color 0.2s;
+        }
+        .star-rating .star.lit {
+            color: #f59e0b;
+            text-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+        }
+        .star-rating .star.half {
+            background: linear-gradient(to right, #f59e0b 50%, #334155 50%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 4px rgba(245,158,11,0.5));
+        }
+
+        /* Arrow + rating wrapper next to Cannon Crush card */
+        .card-with-label {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .card-side-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            color: #f59e0b;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+            text-shadow: 0 0 10px rgba(245,158,11,0.5);
+        }
+        .card-side-label .arrow {
+            font-size: 1.5rem;
+            animation: bounce-right 1.2s ease-in-out infinite;
+        }
+        @keyframes bounce-right {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(5px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
         }
     </style>
 </head>
 <body>
-    <h1>My Games</h1>
-    
-    <a href="block_blast.html" class="game-link">Cannon Blast</a>
-    <a href="star_catcher.html" class="game-link star-catcher">Star Catcher</a>
+    <div class="container">
+        <h1>Arcade Hub</h1>
+        <button class="instructions-btn" id="instructions-btn">📖 Instructions for the games</button>
+        <p class="subtitle">Experience high-speed action and classic fun with our curated collection of web-based arcade games.</p>
 
+        <div class="controls-wrapper">
+            <div class="controls" id="controls-panel">
+                <span class="toggle-label">Desktop</span>
+                <label class="switch" id="toggle-switch">
+                    <input type="checkbox" id="mobile-toggle">
+                    <span class="slider"></span>
+                </label>
+                <span class="toggle-label">Mobile Mode</span>
+            </div>
+        </div>
+
+        <div class="games-grid">
+            <div class="card-with-label">
+                <div class="card-side-label">
+                    <span>Top Pick</span>
+                    <span class="arrow">&#9658;</span>
+                    <div class="star-rating">
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                    </div>
+                    <span>5 / 5</span>
+                </div>
+                <a href="cannon-crush/" class="game-card" style="flex:1;">
+                    <div class="badge">Action</div>
+                    <div class="game-icon">🚀</div>
+                    <div class="game-title">Cannon Crush</div>
+                    <p class="game-desc">Defend your base with powerful cannons and upgrades.</p>
+                    <div class="star-rating" style="justify-content:center;">
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                        <span class="star lit">&#9733;</span>
+                    </div>
+                    <div class="play-hint">Play Now</div>
+                </a>
+            </div>
+
+            <a href="star-catcher/" class="game-card star-catcher">
+                <div class="badge">Casual</div>
+                <div class="game-icon">⭐</div>
+                <div class="game-title">Star Catcher</div>
+                <p class="game-desc">Catch falling stars and unlock vibrant themes.</p>
+                <div class="star-rating" style="justify-content:center;">
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star">&#9734;</span>
+                    <span class="star">&#9734;</span>
+                    <span class="star">&#9734;</span>
+                </div>
+                <div class="play-hint">Play Now</div>
+            </a>
+
+            <a href="vortex-voyager/" class="game-card vortex-voyager">
+                <div class="badge">Speed</div>
+                <div class="game-icon">🌀</div>
+                <div class="game-title">Vortex Voyager</div>
+                <p class="game-desc">Dive into the neon tunnel and dodge the void.</p>
+                <div class="star-rating" style="justify-content:center;">
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star half">&#9733;</span>
+                    <span class="star">&#9734;</span>
+                </div>
+                <div class="play-hint">Play Now</div>
+            </a>
+
+            <a href="gravity-flip/" class="game-card ninja-dash">
+                <div class="badge">Runner</div>
+                <div class="game-icon">🥷</div>
+                <div class="game-title">Ninja Dash</div>
+                <p class="game-desc">Master gravity and survive the neon hurdles.</p>
+                <div class="star-rating" style="justify-content:center;">
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star">&#9734;</span>
+                </div>
+                <div class="play-hint">Play Now</div>
+            </a>
+
+            <a href="frag-duel/" class="game-card frag-duel">
+                <div class="badge">Multiplayer</div>
+                <div class="game-icon">🔫 [STILL IN BETA]</div>
+                <div class="game-title">[STILL IN BETA] Frag Duel</div>
+                <p class="game-desc">1v1 Tactical FPS - Battle in real-time.</p>
+                <div class="star-rating" style="justify-content:center;">
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                    <span class="star lit">&#9733;</span>
+                </div>
+                <div class="play-hint">Play Now</div>
+            </a>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-links">
+            <a href="#" id="about-link">About</a>
+            <a href="#" id="support-link">Support</a>
+        </div>
+        <p>Built for ultimate speed and fun.</p>
+    </footer>
+
+    <!-- Instructions Overlay -->
+    <div id="instructions-overlay" class="overlay">
+        <div class="overlay-content">
+            <button class="close-overlay" id="close-instructions">&times;</button>
+            <h2>📖 How to Play</h2>
+
+            <div class="instr-game">
+                <div class="instr-game-header">
+                    <span class="instr-game-icon">🚀</span>
+                    <span class="instr-game-title">Cannon Crush</span>
+                </div>
+                <span class="instr-section-label">Goal</span>
+                <p>Defend your base by shooting enemy balls before they reach you. Clear all the balls in each level to advance, and defeat boss rounds every 5 levels.</p>
+                <span class="instr-section-label">Controls</span>
+                <p><strong>Move:</strong> Arrow keys or A / D &nbsp;|&nbsp; <strong>Shoot:</strong> Hold W, ↑, or Space (auto-fires while held). On mobile, drag the slider to move and tap the fire button to shoot.</p>
+                <span class="instr-section-label">How it works</span>
+                <p>Balls fly in from either side. Each ball has HP shown on it — shoot it enough times to destroy it. Spend coins earned from kills on upgrades like damage, fire rate, multi-shot, piercing bullets, and more. Boss rounds spawn a giant enemy that slams down at you and sends minion balls!</p>
+            </div>
+
+            <div class="instr-game">
+                <div class="instr-game-header">
+                    <span class="instr-game-icon">⭐</span>
+                    <span class="instr-game-title">Star Catcher</span>
+                </div>
+                <span class="instr-section-label">Goal</span>
+                <p>Move your paddle to catch falling stars and score points. Avoid bombs — they cost you a life. You start with 3 lives.</p>
+                <span class="instr-section-label">Controls</span>
+                <p><strong>Move:</strong> Arrow keys or A / D. On mobile, drag the slider at the bottom of the game area.</p>
+                <span class="instr-section-label">How it works</span>
+                <p>Stars and bombs fall from the top of the screen, speeding up over time. Every 25 stars that fall, a <strong>powerup</strong> drops. Powerups include: ❤ extra life, ✨ Star Rush (more stars), 🧯 Calm (fewer bombs), 🛡 Shield (deflects up to 3 bombs), and ↔ Wide (wider paddle). Catching stars also builds your total star count, which unlocks new paddle colors in the main menu.</p>
+            </div>
+
+            <div class="instr-game">
+                <div class="instr-game-header">
+                    <span class="instr-game-icon">🌀</span>
+                    <span class="instr-game-title">Vortex Voyager</span>
+                </div>
+                <span class="instr-section-label">Goal</span>
+                <p>Survive as long as possible while plummeting down a procedurally generated neon tunnel. Dodge the red wall segments — touching one ends your run.</p>
+                <span class="instr-section-label">Controls</span>
+                <p><strong>Rotate the tunnel:</strong> Click and drag left/right, press ← / → arrow keys, or touch and swipe. Your ship stays fixed at the bottom center — you rotate the world instead.</p>
+                <span class="instr-section-label">How it works</span>
+                <p>The tunnel rings scroll toward you continuously, getting faster as your distance increases. Obstacle rings have red jagged wall segments that block part of the ring's opening — rotate so the gap lines up with your ship's position (bottom center). Your score increases for every ring you pass through.</p>
+            </div>
+
+            <div class="instr-game">
+                <div class="instr-game-header">
+                    <span class="instr-game-icon">🥷</span>
+                    <span class="instr-game-title">Ninja Dash</span>
+                </div>
+                <span class="instr-section-label">Goal</span>
+                <p>Run as far as possible. The ninja runs automatically — your only job is to flip gravity to dodge spikes. Get a new personal best distance to set a record shown on the side bar.</p>
+                <span class="instr-section-label">Controls</span>
+                <p><strong>Flip gravity:</strong> Tap / click anywhere, or press Space. Every flip instantly teleports the ninja to the opposite wall (top or bottom).</p>
+                <span class="instr-section-label">How it works</span>
+                <p>Spikes are attached to either the top or bottom wall. The ninja's running speed increases over time, making spikes come faster and giving you less reaction time. There's no health — one spike hit and it's over. Your distance is tracked in meters and saved as your personal best.</p>
+            <div class="instr-game">
+                <div class="instr-game-header">
+                    <span class="instr-game-icon">🔫</span>
+                    <span class="instr-game-title">Frag Duel (1v1 Multiplayer)</span>
+                </div>
+                <span class="instr-section-label">Goal</span>
+                <p>Frag your opponent to win the duel. This is a real-time multiplayer game using Peer-to-Peer technology.</p>
+                <span class="instr-section-label">Controls</span>
+                <p><strong>Move:</strong> WASD &nbsp;|&nbsp; <strong>Jump:</strong> Space &nbsp;|&nbsp; <strong>Aim/Shoot:</strong> Mouse (Click to shoot) &nbsp;|&nbsp; <strong>Lock Mouse:</strong> Click anywhere during play.</p>
+                <span class="instr-section-label">How to Connect</span>
+                <p><strong>Quick Match:</strong> Click "Quick Match" to be automatically paired with the next available player. <br><strong>Private Duel:</strong> One player shares their ID, and the other pastes it into the "Join" box to connect.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="about-overlay" class="overlay">
+        <div class="overlay-content">
+            <button class="close-overlay">&times;</button>
+            <p>A game made with ai for funzies</p>
+        </div>
+    </div>
+
+    <div id="support-overlay" class="overlay">
+        <div class="overlay-content">
+            <button class="close-overlay">&times;</button>
+            <h2>Support</h2>
+            <p>Need help or found a bug? We're here to assist you.</p>
+            <p>Contact our team at <a href="mailto:ejfunnysocks@gmail.com" style="color: var(--primary); text-decoration: none;">ejfunnysocks@gmail.com</a> and we'll get back to you as soon as possible.</p>
+        </div>
+    </div>
+
+    <div class="bg-particles" id="particles"></div>
+
+    <script>
+        const mobileToggle = document.getElementById('mobile-toggle');
+        const controlsPanel = document.getElementById('controls-panel');
+
+        // Restore saved mobile mode state
+        if (localStorage.getItem('globalMobileMode') === 'true') {
+            mobileToggle.checked = true;
+        }
+
+        // Show the mobile mode panel only when an actual touch is detected
+        let touchRevealDone = false;
+        window.addEventListener('touchstart', function revealMobileBtn() {
+            if (touchRevealDone) return;
+            touchRevealDone = true;
+            controlsPanel.style.display = 'flex';
+            // If no preference saved yet, default to enabled on touch devices
+            if (localStorage.getItem('globalMobileMode') === null) {
+                mobileToggle.checked = true;
+                localStorage.setItem('globalMobileMode', 'true');
+            }
+        }, { passive: true });
+
+        mobileToggle.addEventListener('change', () => {
+            localStorage.setItem('globalMobileMode', mobileToggle.checked);
+        });
+
+        mobileToggle.addEventListener('click', () => {
+            localStorage.setItem('globalMobileMode', mobileToggle.checked);
+        });
+
+        // Background Particles Generator
+        const particlesContainer = document.getElementById('particles');
+        const particleCount = 20;
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            
+            const size = Math.random() * 4 + 2 + 'px';
+            particle.style.width = size;
+            particle.style.height = size;
+            
+            particle.style.left = Math.random() * 100 + 'vw';
+            particle.style.top = Math.random() * 100 + 'vh';
+            
+            const duration = Math.random() * 10 + 10 + 's';
+            const delay = Math.random() * -20 + 's';
+            particle.style.animationDuration = duration;
+            particle.style.animationDelay = delay;
+            
+            particlesContainer.appendChild(particle);
+        }
+
+        // Overlay Logic
+        const aboutLink = document.getElementById('about-link');
+        const supportLink = document.getElementById('support-link');
+        const aboutOverlay = document.getElementById('about-overlay');
+        const supportOverlay = document.getElementById('support-overlay');
+
+        function openOverlay(overlay) {
+            overlay.style.display = 'flex';
+        }
+
+        function closeOverlays() {
+            document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none');
+        }
+
+        aboutLink.addEventListener('click', (e) => { e.preventDefault(); openOverlay(aboutOverlay); });
+        supportLink.addEventListener('click', (e) => { e.preventDefault(); openOverlay(supportOverlay); });
+        document.getElementById('instructions-btn').addEventListener('click', () => openOverlay(document.getElementById('instructions-overlay')));
+        document.getElementById('close-instructions').addEventListener('click', closeOverlays);
+
+        document.querySelectorAll('.close-overlay').forEach(btn => {
+            btn.addEventListener('click', closeOverlays);
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target.classList.contains('overlay')) closeOverlays();
+        });
+    </script>
 </body>
 </html>

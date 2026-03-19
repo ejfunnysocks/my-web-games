@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ninja Dash | Arcade Hub</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+        
+        :root {
+            --primary: #fbbf24;
+            --accent: #ef4444;
+            --bg: #0f172a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            min-height: 100vh;
+            overflow-y: auto;
+            padding: 40px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px; /* Widened screen */
+            height: 400px;
+            background: #000;
+            overflow: hidden;
+            border: 1px solid #1e293b;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border-radius: 20px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden { opacity: 0; pointer-events: none; }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+            background: linear-gradient(to bottom, #fff, var(--primary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .ninja-icon-title {
+            font-size: 4rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn {
+            padding: 1rem 2.5rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #0f172a;
+            background: var(--primary);
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 20px -5px rgba(251, 191, 36, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(251, 191, 36, 0.5);
+        }
+
+        .portal-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 0.6rem 1.2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 100px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            z-index: 150; /* Ensure it stays above everything */
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+
+        #score-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+            z-index: 100;
+        }
+
+        #best-bar-container {
+            position: absolute;
+            right: 15px;
+            top: 70px;
+            bottom: 70px;
+            width: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            z-index: 90;
+        }
+
+        #best-bar-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, var(--primary), var(--accent));
+            box-shadow: 0 0 15px var(--primary);
+            transition: height 0.3s;
+        }
+
+        #best-label {
+            position: absolute;
+            right: 35px;
+            bottom: 70px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            transform: rotate(-90deg);
+            transform-origin: right bottom;
+            white-space: nowrap;
+        }
+        /* Instructions */
+        .hint {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255,255,255,0.4);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            pointer-events: none;
+        }
+
+        /* Info Button & Overlay */
+        #info-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 120;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(10, 10, 10, 0.6);
+            border: 1.5px solid var(--primary);
+            color: var(--primary);
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+        }
+        #info-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            transform: scale(1.1);
+        }
+        #info-game-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            padding: 20px;
+        }
+        #info-game-overlay.visible { display: flex; }
+        .info-card {
+            background: #0f172a;
+            border: 1px solid var(--primary);
+            border-radius: 20px;
+            padding: 2rem;
+            max-width: 450px;
+            width: 100%;
+            position: relative;
+            box-shadow: 0 0 50px rgba(99, 102, 241, 0.3);
+        }
+        .info-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .info-card h2 { margin-top: 0; color: white; display: flex; align-items: center; gap: 10px; }
+        .info-section { color: var(--primary); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; margin-top: 1.5rem; display: block; }
+        .info-card p { color: #94a3b8; margin: 0.5rem 0; font-size: 0.95rem; line-height: 1.5; }
+
+        /* Pause Overlay */
+        #pause-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 250;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #pause-overlay.visible { display: flex; }
+        #pause-overlay h2 {
+            color: var(--primary);
+            font-size: 4rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 30px var(--primary);
+            letter-spacing: 8px;
+        }
+        .pause-btn {
+            padding: 1rem 3rem;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border: none;
+            border-radius: 100px;
+            cursor: pointer;
+            font-weight: 700;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .pause-btn:hover {
+            transform: scale(1.1) translateY(-5px);
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <a href="../" class="portal-btn">← Arcade Hub</a>
+        <div id="score-display">Distance: 0m</div>
+        <div id="best-bar-container"><div id="best-bar-fill"></div></div>
+        <div id="best-label">Personal Best: 0m</div>
+        <div class="hint">Tap to Flip Gravity</div>
+        <button id="info-btn">i</button>
+        <div id="info-game-overlay">
+            <div class="info-card">
+                <button class="info-close" id="close-info">&times;</button>
+                <h2>🥷 Ninja Dash</h2>
+                <span class="info-section">Goal</span>
+                <p>Run as far as possible. The ninja runs automatically — your only job is to flip gravity to dodge spikes. Get a new personal best distance to set a record shown on the side bar.</p>
+                <span class="info-section">Controls</span>
+                <p><strong>Flip gravity:</strong> Tap / click anywhere, or press Space. Every flip instantly teleports the ninja to the opposite wall (top or bottom).</p>
+                <span class="info-section">How it works</span>
+                <p>Spikes are attached to either the top or bottom wall. The ninja's running speed increases over time, making spikes come faster and giving you less reaction time. There's no health — one spike hit and it's over. Your distance is tracked in meters and saved as your personal best.</p>
+            </div>
+        </div>
+        <div id="pause-overlay">
+            <h2>PAUSED</h2>
+            <button class="pause-btn" id="resume-btn">Resume</button>
+        </div>
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Menu Overlay -->
+        <div id="menu-overlay" class="overlay">
+            <div class="ninja-icon-title">🥷</div>
+            <h1>Ninja Dash</h1>
+            <p style="margin-bottom: 2rem; color: #94a3b8; text-align: center; max-width: 80%;">Flip gravity to dodge spikes and survive! Master the way of the gravity ninja.</p>
+            <button id="start-btn" class="btn">Launch</button>
+        </div>
+
+        <!-- Game Over Overlay -->
+        <div id="game-over-overlay" class="overlay hidden">
+            <h1 style="color: var(--accent); background: none; -webkit-text-fill-color: var(--accent);">Failed!</h1>
+            <p id="final-score" style="font-size: 1.5rem; margin-bottom: 2rem;">Distance: 0m</p>
+            <button id="restart-btn" class="btn">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score-display');
+        const menuOverlay = document.getElementById('menu-overlay');
+        const gameOverOverlay = document.getElementById('game-over-overlay');
+        const finalScoreEl = document.getElementById('final-score');
+
+        let width, height;
+        function resize() {
+            width = canvas.width = canvas.offsetWidth;
+            height = canvas.height = canvas.offsetHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Constants
+        const GROUND_H = 40;
+        const PLAYER_SIZE = 30;
+        const MIN_GAP = 600; // Even wider gap for accessibility
+        const MAX_SPEED = 18; // Faster peak speed for intensity
+        const GRAVITY_FORCE = 0.6;
+        const SPEED_INIT = 4;
+
+        // State
+        const state = {
+            running: false,
+            paused: false,
+            score: 0,
+            speed: SPEED_INIT,
+            player: {
+                x: 100, y: 0,
+                vy: 0,
+                gravity: 1, // 1 = down, -1 = up
+                radius: 15,
+                rotation: 0,
+                animTime: 0
+            },
+            best: parseInt(localStorage.getItem('ninja_best')) || 0,
+            platforms: [],
+            obstacles: [],
+            particles: [],
+            trail: [], // Teleport trail
+            lastTime: 0,
+            obstacleTimer: 0
+        };
+
+        // Utility
+        const random = (min, max) => Math.random() * (max - min) + min;
+
+        // --- SFX Engine ---
+        class SFXManager {
+            constructor() { this.ctx = null; }
+            init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+            play(type) {
+                if (!this.ctx) return;
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                
+                switch(type) {
+                    case 'flip':
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(400, now);
+                        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                        gain.gain.setValueAtTime(0.1, now);
+                        gain.gain.linearRampToValueAtTime(0, now + 0.15);
+                        osc.start(); osc.stop(now + 0.15);
+                        break;
+                    case 'thud':
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(150, now);
+                        osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+                        gain.gain.setValueAtTime(0.05, now);
+                        gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                        osc.start(); osc.stop(now + 0.1);
+                        break;
+                    case 'crash':
+                        this.playNoise(now, 0.4, 0.2);
+                        break;
+                }
+            }
+            playNoise(time, duration, volume) {
+                const bufferSize = this.ctx.sampleRate * duration;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(volume, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+                noise.connect(gain); noise.connect(this.ctx.destination);
+                noise.start(time); noise.stop(time + duration);
+            }
+        }
+        const sfx = new SFXManager();
+
+        // --- Game Logic ---
+        function initGame() {
+            state.score = 0;
+            state.speed = SPEED_INIT;
+            state.player.y = height / 2;
+            state.player.vy = 0;
+            state.player.gravity = 1;
+            state.player.rotation = 0;
+            state.player.animTime = 0;
+            state.platforms = [
+                { x: 0, y: height - GROUND_H, w: width * 2, h: GROUND_H, type: 'bottom' },
+                { x: 0, y: 0, w: width * 2, h: GROUND_H, type: 'top' }
+            ];
+            state.obstacles = [];
+            state.particles = [];
+            state.trail = [];
+            updateBestBar(); // Initialize best bar display
+        }
+
+        function createObstacle(x) {
+            const isTop = Math.random() > 0.5;
+            const w = 30;
+            const h = 40;
+            const y = isTop ? GROUND_H : height - GROUND_H - h;
+            return { x, y, w, h, isTop, id: Date.now() };
+        }
+
+        function update(dt, rawDt) {
+            if (!state.running) return;
+
+            // Player Physics
+            state.player.vy += GRAVITY_FORCE * state.player.gravity * dt;
+            state.player.y += state.player.vy * dt;
+            state.player.animTime += state.speed * 0.1 * dt;
+
+            // Collision with Ground
+            const bottomY = height - GROUND_H - state.player.radius;
+            const topY = GROUND_H + state.player.radius;
+
+            if (state.player.y > bottomY && state.player.gravity === 1) {
+                state.player.y = bottomY;
+                state.player.vy = 0;
+            } else if (state.player.y < topY && state.player.gravity === -1) {
+                state.player.y = topY;
+                state.player.vy = 0;
+            }
+
+            // Trail update
+            state.trail.forEach(t => t.life -= 0.05 * dt);
+            state.trail = state.trail.filter(t => t.life > 0);
+
+            // Move Platforms & Obstacles
+            state.score += (state.speed / 30) * dt; // Slower meter accumulation
+            
+            state.platforms.forEach(p => p.x -= state.speed * dt);
+            if (state.platforms[0].x < -width) {
+                state.platforms.forEach(p => p.x += width);
+            }
+
+            state.obstacles.forEach((obs, idx) => {
+                obs.x -= state.speed * dt;
+                // Collision
+                const dx = state.player.x - (obs.x + obs.w/2);
+                const dy = state.player.y - (obs.y + obs.h/2);
+                const distSq = dx*dx + dy*dy;
+                if (distSq < (state.player.radius + 15)**2) {
+                    endGame();
+                }
+                if (obs.x < -100) state.obstacles.splice(idx, 1);
+            });
+
+            // Obstacle Spawning (Fair & Scaling)
+            state.obstacleTimer -= rawDt;
+            if (state.obstacleTimer <= 0) {
+                // Progression
+                state.speed = Math.min(MAX_SPEED, 6 + (state.score * 0.03)); // Slower speed scaling
+                
+                // Enforce MIN_GAP between obstacles
+                const lastObs = state.obstacles[state.obstacles.length - 1];
+                if (!lastObs || (width + 100 - lastObs.x) >= MIN_GAP) {
+                    state.obstacles.push(createObstacle(width + 100));
+                    const spawnRate = 120;
+                    state.obstacleTimer = (spawnRate / state.speed) * 16.6; 
+                }
+            }
+
+            scoreEl.textContent = `Distance: ${Math.floor(state.score)}m`;
+            updateBestBar();
+            
+            // Clean up off-screen
+            state.platforms = state.platforms.filter(p => p.x + p.w > -100);
+        }
+
+        function updateBestBar() {
+            const fill = document.getElementById('best-bar-fill');
+            const label = document.getElementById('best-label');
+            const best = state.best;
+            
+            if (best === 0) {
+                fill.style.height = '0%';
+                label.textContent = 'Personal Best: 0m';
+            } else {
+                const percent = Math.min(100, (state.score / best) * 100);
+                fill.style.height = percent + '%';
+                label.textContent = `Personal Best: ${best}m`;
+                if (state.score > best) {
+                    label.style.color = 'var(--accent)';
+                    label.textContent = `NEW BEST: ${Math.floor(state.score)}m!`;
+                } else {
+                    label.style.color = '#94a3b8';
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw Platforms
+            ctx.fillStyle = '#334155';
+            state.platforms.forEach(p => {
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                // Glowing Edge
+                ctx.fillStyle = varColor('--primary');
+                ctx.fillRect(p.x, p.type === 'bottom' ? p.y : p.y + p.h - 4, p.w, 4);
+                ctx.fillStyle = '#334155';
+            });
+
+            // Draw Obstacles (Spikes)
+            state.obstacles.forEach(obs => {
+                ctx.fillStyle = varColor('--accent');
+                ctx.beginPath();
+                if (obs.isTop) {
+                    ctx.moveTo(obs.x, obs.y);
+                    ctx.lineTo(obs.x + obs.w/2, obs.y + obs.h);
+                    ctx.lineTo(obs.x + obs.w, obs.y);
+                } else {
+                    ctx.moveTo(obs.x, obs.y + obs.h);
+                    ctx.lineTo(obs.x + obs.w/2, obs.y);
+                    ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
+                }
+                ctx.fill();
+            });
+
+            // Draw Trail
+            state.trail.forEach(t => {
+                ctx.globalAlpha = t.life * 0.3;
+                drawNinja(ctx, t.x, t.y, state.player.radius, 0, true, 0, 1);
+            });
+            ctx.globalAlpha = 1.0;
+
+            // Draw Player (Ninja)
+            drawNinja(ctx, state.player.x, state.player.y, state.player.radius, 0, false, state.player.animTime, state.player.gravity);
+        }
+
+        function drawNinja(ctx, x, y, radius, rotation, isTrail, animTime, gravity) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            // Flip vertically based on gravity
+            ctx.scale(1, gravity);
+            
+            const primary = varColor('--primary');
+
+            if (isTrail) {
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                return;
+            }
+
+            // Running Legs logic
+            const legSwing = Math.sin(animTime) * radius * 0.8;
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+
+            // Leg 1
+            ctx.beginPath();
+            ctx.moveTo(0, radius * 0.5);
+            ctx.lineTo(legSwing, radius * 1.2);
+            ctx.stroke();
+
+            // Leg 2
+            ctx.beginPath();
+            ctx.moveTo(0, radius * 0.5);
+            ctx.lineTo(-legSwing, radius * 1.2);
+            ctx.stroke();
+
+            // Body (Tapered Gi)
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.moveTo(-radius, radius * 0.6);
+            ctx.lineTo(radius, radius * 0.6);
+            ctx.lineTo(radius * 0.8, -radius * 0.2);
+            ctx.lineTo(-radius * 0.8, -radius * 0.2);
+            ctx.closePath();
+            ctx.fill();
+
+            // Head (Hood)
+            ctx.beginPath();
+            ctx.arc(0, -radius * 0.6, radius * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Mask Area (Contrast)
+            ctx.fillStyle = '#1e293b'; 
+            ctx.beginPath();
+            ctx.ellipse(0, -radius * 0.6, radius * 0.6, radius * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Headband Wrapper (Primary)
+            ctx.fillStyle = primary;
+            ctx.fillRect(-radius * 0.8, -radius * 0.9, radius * 1.6, 6);
+            
+            // Eyes (Glowing)
+            ctx.fillStyle = '#fff';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#fff';
+            ctx.fillRect(2, -radius * 0.7, 5, 3); // Right
+            ctx.fillRect(-7, -radius * 0.7, 5, 3); // Left
+            ctx.shadowBlur = 0;
+
+            // Headband Tails (Wavy)
+            ctx.strokeStyle = primary;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-radius * 0.7, -radius * 0.8);
+            ctx.bezierCurveTo(-radius - 15, -radius - 10, -radius - 5, radius * 0.2, -radius - 15, radius * 0.5);
+            ctx.stroke();
+
+            // Sword Hilt (diagonal on back)
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(radius * 0.5, 0);
+            ctx.lineTo(radius * 1.2, radius * 0.4);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function varColor(v) {
+            return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+        }
+
+        // State Management moved lower
+
+        function togglePause() {
+            if (!state.running) return;
+            state.paused = !state.paused;
+            document.getElementById('pause-overlay').classList.toggle('visible', state.paused);
+            if (!state.paused) {
+                state.lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!state.running || state.paused) return;
+            const rawDt = timestamp - state.lastTime;
+            state.lastTime = timestamp;
+            const dt = Math.min(rawDt / 16.67, 2.0); // normalize to 60fps, cap at 2x
+            
+            update(dt, rawDt);
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- Controls ---
+        function handleFlip() {
+            if (!state.running) return;
+            
+            // Teleport!
+            const oldY = state.player.y;
+            state.player.gravity *= -1;
+            state.player.y = state.player.gravity === 1 ? (height - GROUND_H - state.player.radius) : (GROUND_H + state.player.radius);
+            state.player.vy = 0;
+
+            // Generate "teleport" trail blocks
+            const steps = 5;
+            for(let i=1; i<steps; i++) {
+                state.trail.push({
+                    x: state.player.x,
+                    y: oldY + (state.player.y - oldY) * (i/steps),
+                    life: 1.0 - (i/steps) * 0.5
+                });
+            }
+
+            sfx.play('flip');
+            // Tiny screen shake
+            document.getElementById('game-container').animate([
+                { transform: 'translate(1px, 1px)' },
+                { transform: 'translate(-1px, -1px)' },
+                { transform: 'translate(0, 0)' }
+            ], { duration: 100 });
+        }
+
+        canvas.addEventListener('mousedown', (e) => { sfx.init(); handleFlip(); });
+        canvas.addEventListener('touchstart', (e) => { sfx.init(); handleFlip(); });
+        window.addEventListener('keydown', (e) => { if(e.code === 'Space') { e.preventDefault(); handleFlip(); } });
+
+        // --- State Management ---
+        function startGame() {
+            state.running = true;
+            state.paused = false;
+            document.getElementById('pause-overlay').classList.remove('visible');
+            menuOverlay.classList.add('hidden');
+            gameOverOverlay.classList.add('hidden');
+            initGame();
+            state.lastTime = performance.now();
+        }
+
+        function endGame() {
+            state.running = false;
+            if (state.score > state.best) {
+                state.best = Math.floor(state.score);
+                localStorage.setItem('ninja_best', state.best);
+            }
+            finalScoreEl.textContent = `Distance: ${Math.floor(state.score)}m`;
+            gameOverOverlay.classList.remove('hidden');
+        }
+
+        document.getElementById('start-btn').addEventListener('click', function() { this.blur(); startGame(); });
+        document.getElementById('restart-btn').addEventListener('click', function() { this.blur(); startGame(); });
+
+        requestAnimationFrame(gameLoop);
+        document.getElementById('info-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (state.running && !state.paused) togglePause();
+            document.getElementById('info-game-overlay').classList.add('visible');
+        });
+        document.getElementById('close-info').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('info-game-overlay').classList.remove('visible');
+            if (state.running && state.paused) togglePause();
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Escape') togglePause();
+        });
+        document.getElementById('resume-btn').addEventListener('click', togglePause);
+    </script>
+</body>
+</html>
