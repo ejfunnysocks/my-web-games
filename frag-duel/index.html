@@ -1,17 +1,38 @@
-<!-- Original content of frag-duel/index.html with the complete Three.js multiplayer FPS game code from commit d94c18c86461afc34906faf51aed45f8a18225b1 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Three.js Multiplayer FPS</title>
+    <title>Three.js 1v1 Multiplayer FPS Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- Other game-specific scripts and stylesheets -->
+    <script src="https://your/game/networking.js"></script>
+    <script src="https://your/game/weapons.js"></script>
+    <script src="https://your/game/arena.js"></script>
+    <script src="https://your/game/animations.js"></script>
+    <script src="https://your/game/gameSystems.js"></script>
 </head>
 <body>
     <script>
-        // Original Three.js multiplayer FPS game code goes here
-        // You will need to replace this comment with the actual game code extracted from the commit.
+        // Initialize the game and its elements here
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Game setup code...
+        // Networking, weapons, arena, animations...
+
+        function animate() {
+            requestAnimationFrame(animate);
+            // Update game state and render
+            renderer.render(scene, camera);
+        }
+        animate();
     </script>
 </body>
 </html>
