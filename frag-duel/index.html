@@ -1,37 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Three.js 1v1 Multiplayer FPS Game</title>
-    <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { display: block; }
-    </style>
+    <title>Multiplayer FPS Game</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://your/game/networking.js"></script>
-    <script src="https://your/game/weapons.js"></script>
-    <script src="https://your/game/arena.js"></script>
-    <script src="https://your/game/animations.js"></script>
-    <script src="https://your/game/gameSystems.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
 </head>
 <body>
     <script>
-        // Initialize the game and its elements here
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Game setup code...
-        // Networking, weapons, arena, animations...
+        let player;
+        const socket = io('http://localhost:3000'); // Server URL
+
+        socket.on('connect', () => {
+            console.log('Connected to the server!');
+            socket.emit('newPlayer');
+        });
+
+        socket.on('updatePlayers', (players) => {
+            // Update players on the client
+        });
+
+        function createPlayer() {
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            player = new THREE.Mesh(geometry, material);
+            scene.add(player);
+        }
 
         function animate() {
             requestAnimationFrame(animate);
-            // Update game state and render
             renderer.render(scene, camera);
         }
+
+        createPlayer();
         animate();
     </script>
 </body>
