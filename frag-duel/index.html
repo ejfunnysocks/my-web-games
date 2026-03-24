@@ -1189,6 +1189,7 @@
         // --- Gameplay ---
         function startMatch(seed) {
             if (state.running) return;
+            console.log("Match starting with seed:", seed);
             state.running = true;
             document.getElementById('lobby-screen').classList.add('hidden');
             document.getElementById('game-over-screen').classList.add('hidden');
@@ -1299,8 +1300,6 @@
                     showHitmarker();
                     state.conn.send({ type: 'hit', dmg: hits * weapon.damage });
                 }
-                spawnBullet(camera.position, direction);
-                state.conn.send({ type: 'shot', origin: camera.position, dir: direction });
             } else if (state.me.weapon === 'ROCKET') {
                 const direction = camera.getWorldDirection(new THREE.Vector3());
                 spawnRocket(camera.position, direction, true);
@@ -1499,24 +1498,8 @@
         function update() {
             if (!state.running) return;
 
-            // Move
+            // Robust Movement
             const direction = new THREE.Vector3();
-            const front = new THREE.Vector3();
-            const side = new THREE.Vector3();
-
-            // Get forward vector (ignore Y)
-            camera.getWorldDirection(front);
-            front.y = 0;
-            if (front.lengthSq() > 0.00001) {
-                front.normalize();
-            } else {
-                // If looking directly up/down, use the camera's up/down to deduce a front vector
-                // or just default to z-forward based on current rotation
-                front.set(Math.sin(camera.rotation.y), 0, Math.cos(camera.rotation.y)).negate();
-            }
-            
-            side.crossVectors(front, camera.up).normalize();
-
             let moveX = 0;
             let moveZ = 0;
 
@@ -1526,15 +1509,21 @@
             if (state.keys['KeyD']) moveX += 1;
 
             if (moveX !== 0 || moveZ !== 0) {
-                direction.addScaledVector(front, moveZ).addScaledVector(side, moveX);
-                if (direction.lengthSq() > 0) {
+                // Use the camera rotation.y directly for precise 2D character orientation
+                const angle = camera.rotation.y;
+                const forward = new THREE.Vector3(-Math.sin(angle), 0, -Math.cos(angle)).normalize();
+                const right = new THREE.Vector3(-Math.cos(angle), 0, Math.sin(angle)).normalize();
+
+                direction.addScaledVector(forward, moveZ).addScaledVector(right, -moveX); // Note: right is inverted for standard FPS
+                
+                if (direction.lengthSq() > 0.1) {
                     direction.normalize();
                     
                     // Horizontal Collision Check
                     const horizontalRay = new THREE.Raycaster(
-                        state.me.pos.clone().setY(state.me.pos.y - 0.8), // Check at knee/waist level
+                        state.me.pos.clone().setY(state.me.pos.y - 0.8),
                         direction,
-                        0, 1.0
+                        0, 0.8 // slightly shorter ray for better mobility
                     );
                     const wallHits = horizontalRay.intersectObjects(state.obstacles);
                     
@@ -1847,6 +1836,7 @@
         });
         
         window.addEventListener('mousedown', (e) => {
+            console.log("Mouse down Event - state.running:", state.running, "controls.isLocked:", controls.isLocked);
             if (state.running) {
                 if (!controls.isLocked) {
                     controls.lock();
@@ -1860,6 +1850,10 @@
             if (e.button === 0) state.isShooting = false;
             if (e.button === 2) state.me.isAds = false;
         });
+
+        // Pointer Lock Event Diagnostics
+        controls.addEventListener('lock', () => console.log('Pointer Locked! Game Ready.'));
+        controls.addEventListener('unlock', () => console.log('Pointer Unlocked!'));
 
         // Disable context menu for right-click ADS
         window.addEventListener('contextmenu', e => e.preventDefault());
