@@ -728,6 +728,7 @@
             initTunnel();
             updateBestBar();
             state.lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
         }
 
         function endGame() {
