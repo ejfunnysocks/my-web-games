@@ -149,25 +149,35 @@
     </div>
   </div>
   <script>
-    // Footer link actions
-    document.getElementById('bug-report-link').addEventListener('click', e=>{e.preventDefault();document.getElementById('bug-report-overlay').style.display='flex';});
-    document.getElementById('support-me-link').addEventListener('click', e=>{e.preventDefault();document.getElementById('support-overlay').style.display='flex';});
-    document.getElementById('close-bug-report').addEventListener('click',()=>{document.getElementById('bug-report-overlay').style.display='none';});
-    document.getElementById('close-support').addEventListener('click',()=>{document.getElementById('support-overlay').style.display='none';});
-    // Smart donation slider logic
-    const slider = document.getElementById('donation-slider');
-    const valueDisplay = document.getElementById('donation-value');
-    slider.addEventListener('input', ()=>{
-      let val = parseInt(slider.value);
-      if (val <= 5) { slider.step = 1; }
-      else if (val <= 100) { slider.step = 5; }
-      else { slider.step = 100; }
-      valueDisplay.textContent = `$${val}`;
+    document.addEventListener('DOMContentLoaded', () => {
+      // Footer link actions
+      const bugLink = document.getElementById('bug-report-link');
+      const supportLink = document.getElementById('support-me-link');
+      const closeBug = document.getElementById('close-bug-report');
+      const closeSupport = document.getElementById('close-support');
+      const bugOverlay = document.getElementById('bug-report-overlay');
+      const supportOverlay = document.getElementById('support-overlay');
+      if (bugLink) { bugLink.addEventListener('click', e => { e.preventDefault(); if (bugOverlay) bugOverlay.style.display = 'flex'; }); }
+      if (supportLink) { supportLink.addEventListener('click', e => { e.preventDefault(); if (supportOverlay) supportOverlay.style.display = 'flex'; }); }
+      if (closeBug) { closeBug.addEventListener('click', () => { if (bugOverlay) bugOverlay.style.display = 'none'; }); }
+      if (closeSupport) { closeSupport.addEventListener('click', () => { if (supportOverlay) supportOverlay.style.display = 'none'; }); }
+      // Smart donation slider logic
+      const slider = document.getElementById('donation-slider');
+      const valueDisplay = document.getElementById('donation-value');
+      if (slider && valueDisplay) {
+        slider.addEventListener('input', () => {
+          let val = parseInt(slider.value);
+          if (val <= 5) { slider.step = 1; }
+          else if (val <= 100) { slider.step = 5; }
+          else { slider.step = 100; }
+          valueDisplay.textContent = `$${val}`;
+        });
+        slider.dispatchEvent(new Event('input'));
+      }
+      // Hide mobile controls for Cannon Crush (placeholder)
+      const mobileToggle = document.getElementById('mobile-toggle');
+      if (mobileToggle) mobileToggle.parentElement.style.display = 'none';
     });
-    slider.dispatchEvent(new Event('input'));
-    // Hide mobile controls for Cannon Crush (placeholder)
-    const mobileToggle = document.getElementById('mobile-toggle');
-    if (mobileToggle) mobileToggle.parentElement.style.display='none';
   </script>
 </body>
 </html>
