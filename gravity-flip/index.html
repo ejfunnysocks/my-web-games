@@ -730,6 +730,7 @@
             gameOverOverlay.classList.add('hidden');
             initGame();
             state.lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
         }
 
         function endGame() {

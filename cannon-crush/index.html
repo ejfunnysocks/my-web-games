@@ -2131,9 +2131,9 @@
       // Clamp cannon
       state.cannonX = Math.max(0, Math.min(GAME_W - CANNON_W, state.cannonX));
       
-      // Shooting
+      // Shooting - Strict Keyboard Controls (WASD / Arrows / Space)
       const isKeyboardShooting = state.keys['ArrowUp'] || state.keys['KeyW'] || state.keys['Space'];
-      if ((state.isShooting || isKeyboardShooting) && timestamp - state.lastShotTime > state.fireRate) {
+      if (isKeyboardShooting && timestamp - state.lastShotTime > state.fireRate) {
         state.lastShotTime = timestamp;
         shoot();
       }
