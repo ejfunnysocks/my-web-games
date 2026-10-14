@@ -48,6 +48,11 @@
     .button-secondary {background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:0.5rem 1.2rem; border-radius:100px; font-weight:700; cursor:pointer;}
     .donation-slider {width:100%;}
     .donation-value {font-size:1.2rem; margin-top:0.5rem; text-align:center;}
+
+    .star-rating { display:flex; justify-content:center; gap:2px; margin-top:.85rem; }
+    .star { font-size:1rem; color:#334155; }
+    .star.lit { color:#f59e0b; text-shadow:0 0 8px rgba(245,158,11,.6); }
+    .game-card.corefall:hover { border-color:#a855f7; box-shadow:0 20px 40px -10px rgba(168,85,247,.32); }
   </style>
 </head>
 <body>
@@ -85,31 +90,40 @@
           <div class="badge">Action</div>
           <div class="game-icon">🚀</div>
           <div class="game-title">Cannon Crush</div>
-          <p class="game-desc">Defend your base with powerful cannons and upgrades.</p>
+          <p class="game-desc">Defend your base with powerful cannons and upgrades.</p><div class="star-rating" aria-label="5 out of 5 stars"><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span></div>
         </a>
         <a href="star-catcher/" class="game-card star-catcher">
           <div class="badge">Casual</div>
           <div class="game-icon">⭐</div>
           <div class="game-title">Star Catcher</div>
-          <p class="game-desc">Catch falling stars and unlock vibrant themes.</p>
+          <p class="game-desc">Catch falling stars and unlock vibrant themes.</p><div class="star-rating" aria-label="2 out of 5 stars"><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star ">&#9733;</span><span class="star ">&#9733;</span><span class="star ">&#9733;</span></div>
         </a>
         <a href="vortex-voyager/" class="game-card vortex-voyager">
           <div class="badge">Speed</div>
           <div class="game-icon">🌀</div>
           <div class="game-title">Vortex Voyager</div>
-          <p class="game-desc">Dive into the neon tunnel and dodge the void.</p>
+          <p class="game-desc">Dive into the neon tunnel and dodge the void.</p><div class="star-rating" aria-label="4 out of 5 stars"><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star ">&#9733;</span></div>
         </a>
         <a href="gravity-flip/" class="game-card ninja-dash">
           <div class="badge">Runner</div>
           <div class="game-icon">🥷</div>
           <div class="game-title">Ninja Dash</div>
-          <p class="game-desc">Master gravity and survive the neon hurdles.</p>
+          <p class="game-desc">Master gravity and survive the neon hurdles.</p><div class="star-rating" aria-label="4 out of 5 stars"><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star ">&#9733;</span></div>
         </a>
         <a href="frag-duel/" class="game-card frag-duel">
           <div class="badge">Multiplayer</div>
           <div class="game-icon">🔫 [STILL IN BETA]</div>
           <div class="game-title">[BETA] Frag Duel</div>
-          <p class="game-desc">1v1 Tactical FPS - Battle in real‑time.</p>
+          <p class="game-desc">1v1 Tactical FPS - Battle in real‑time.</p><div class="star-rating" aria-label="5 out of 5 stars"><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span></div>
+        </a>
+
+        <a href="corefall/" class="game-card corefall">
+          <div class="badge" style="background:rgba(168,85,247,.28);">NEW</div>
+          <div class="game-icon">🛡️</div>
+          <div class="game-title">Corefall</div>
+          <p class="game-desc">Defend the core, evolve your arsenal, and survive the invasion.</p>
+          <div class="star-rating" aria-label="6 out of 6 stars"><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span><span class="star lit">&#9733;</span></div>
+          <div style="margin-top:.5rem;color:#f59e0b;font-weight:800;font-size:.8rem;">6 / 5</div>
         </a>
       </div>
     </div>
