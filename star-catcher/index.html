@@ -339,6 +339,8 @@
       animation: twinkle 0.55s ease-in-out infinite alternate, spinStar 2.6s linear infinite;
       will-change: transform, opacity;
     }
+    .star.star-silver { background: linear-gradient(135deg, #ffffff 0%, #b8d5ea 45%, #e6f5ff 100%); filter: drop-shadow(0 0 7px #b8e8ff) drop-shadow(0 0 13px rgba(184,232,255,.65)); }
+    .star.star-gold { transform: scale(1.18); background: linear-gradient(135deg, #fff7bd 0%, #ffb300 45%, #fff0a6 100%); filter: drop-shadow(0 0 8px #ffb300) drop-shadow(0 0 18px rgba(255,179,0,.8)); }
     /* Powerups: neon symbols, no solid background */
     .powerup {
       position: absolute;
@@ -751,6 +753,7 @@
       border-color: rgba(255, 255, 255, 0.2);
     }
     </style>
+    <link rel="stylesheet" href="../shared/arcade-common.css">
 </head>
 <body>
   <a href="../" class="back-btn">← Arcade Hub</a>
@@ -830,6 +833,8 @@
     </div>
   </div>
 
+  <script src="content.js"></script>
+  <script src="../shared/arcade-common.js"></script>
   <script>
     const gameEl = document.getElementById('game');
     const playerEl = document.getElementById('player');
@@ -852,15 +857,15 @@
     const PLAYER_W = 64;
     const PLAYER_H = 20;
     const ITEM_SIZE = 34;
-    const PLAYER_SPEED = 9;
-    const STAR_POINTS = 10;
+    const PLAYER_SPEED = StarCatcherContent.playerSpeed;
+    const STAR_POINTS = StarCatcherContent.starPoints;
     const SPAWN_INTERVAL_MIN = 260;
     const SPAWN_INTERVAL_INIT = 1200;
 
     // --- State ---
     let playerX = (GAME_W - PLAYER_W) / 2;
     let score = 0;
-    let lives = 3;
+    let lives = StarCatcherContent.startingLives;
     let gameRunning = false;
     let isPaused = false;
     let falling = [];
@@ -870,6 +875,8 @@
     let effects = { rushUntil: 0, calmUntil: 0, shieldHitsLeft: 0, wideUntil: 0 };
     let currentPlayerW = PLAYER_W;
     let lastTime = 0;
+    let gameTime = 0;
+    let tutorialStep = -1;
     let keys = {};
     let best = parseInt(localStorage.getItem('star_high')) || 0;
     let isMobile = (localStorage.getItem('globalMobileMode') === 'true');
@@ -989,7 +996,7 @@
     setInterval(() => { if(gameRunning && Math.random() < 0.2) spawnShootingStar(); }, 3000);
 
     function applyMobileMode() {
-      isMobile = (localStorage.getItem('globalMobileMode') === 'true');
+      isMobile = (localStorage.getItem('globalMobileMode') === 'true') || window.matchMedia('(pointer: coarse)').matches;
       const sliderContainer = document.getElementById('mobile-slider-container');
       if (isMobile) {
         if (gameRunning) sliderContainer.style.display = 'flex';
@@ -1002,9 +1009,9 @@
 
     window.addEventListener('storage', (e) => { if (e.key === 'globalMobileMode') applyMobileMode(); });
 
-    function activeUntil(key) { return Date.now() < effects[key]; }
+    function activeUntil(key) { return gameTime < effects[key]; }
     function isAnyDurationPowerupActive() {
-      const now = Date.now();
+      const now = gameTime;
       return now < effects.rushUntil || now < effects.calmUntil || now < effects.wideUntil;
     }
 
@@ -1015,8 +1022,8 @@
 
     function triggerPowerup(id) {
       if (id === 'life') { lives++; livesEl.textContent = lives; return; }
-      const now = Date.now();
-      const DURATION = 15000;
+      const now = gameTime;
+      const DURATION = StarCatcherContent.powerupDurationMs;
       if (id === 'shield') effects.shieldHitsLeft = 3;
       else if (id === 'rush') effects.rushUntil = now + DURATION;
       else if (id === 'calm') effects.calmUntil = now + DURATION;
@@ -1031,7 +1038,7 @@
     function scheduleSpawn() {
       if (!gameRunning || isPaused) return;
       spawnTimeoutId = setTimeout(() => {
-        const bombChance = activeUntil('calmUntil') ? 0.12 : 0.26;
+        const bombChance = tutorialStep >= 0 ? 0 : (activeUntil('calmUntil') ? StarCatcherContent.calmBombChance : StarCatcherContent.standardBombChance);
         const makeBomb = Math.random() < bombChance;
         spawnItem(makeBomb);
         if (activeUntil('rushUntil') && !makeBomb && Math.random() < 0.55) spawnItem(false);
@@ -1039,12 +1046,24 @@
       }, getSpawnDelay());
     }
 
-    function spawnItem(isBomb = false) {
+    function spawnItem(isBomb = false, forcedX = null, forcedValue = null) {
       if (!gameRunning) return;
       const el = document.createElement('div');
-      el.className = isBomb ? 'bomb' : 'star';
+      let value = STAR_POINTS;
+      let starClass = 'star';
+      if (!isBomb) {
+        const roll = Math.random();
+        if (roll < 0.05) { value = STAR_POINTS * 5; starClass += ' star-gold'; }
+        else if (roll < 0.20) { value = STAR_POINTS * 2; starClass += ' star-silver'; }
+      }
+      if (forcedValue !== null) {
+        value = forcedValue;
+        starClass = value >= STAR_POINTS * 5 ? 'star star-gold' : (value >= STAR_POINTS * 2 ? 'star star-silver' : 'star');
+      }
+      el.className = isBomb ? 'bomb' : starClass;
       el.dataset.kind = isBomb ? 'bomb' : 'star';
-      el.style.left = Math.random() * (GAME_W - ITEM_SIZE) + 'px';
+      el.dataset.value = String(value);
+      el.style.left = (forcedX === null ? Math.random() * (GAME_W - ITEM_SIZE) : forcedX) + 'px';
       el.style.top = '-35px';
       if (isBomb) el.innerHTML = '<div class="bomb-fuse"></div><div class="bomb-body"></div>';
       gameEl.appendChild(el);
@@ -1095,7 +1114,7 @@
       const container = document.getElementById('active-powerups');
       if (!container) return;
       container.innerHTML = '';
-      const now = Date.now();
+      const now = gameTime;
       const activeList = [];
       if (effects.shieldHitsLeft > 0) activeList.push({ name: 'Shield', text: effects.shieldHitsLeft + ' left', color: '#d3baff', glyph: '🛡' });
       if (now < effects.rushUntil) activeList.push({ name: 'Star Rush', text: Math.ceil((effects.rushUntil - now) / 1000) + 's', color: '#7ad4ff', glyph: '✨' });
@@ -1163,8 +1182,9 @@
       spawnTimeoutId = null;
       falling.forEach(o => o.el.remove()); falling = [];
       setTotalStars(getTotalStars() + score);
-      if (score > best) { best = score; localStorage.setItem('star_high', best); }
-      endText.textContent = won ? 'You won! 🎉' : 'Game Over';
+      const isNewBest = score > best;
+      if (isNewBest) { best = score; localStorage.setItem('star_high', best); }
+      endText.textContent = `${won ? 'You won! 🎉' : 'Game Over'} · Score: ${score} · Best: ${best}${isNewBest ? ' · New best!' : ''}`;
       endMsg.classList.remove('hidden');
       if (isMobile) document.getElementById('mobile-slider-container').style.display = 'none';
       sfx.init(); sfx.play('hit');
@@ -1175,11 +1195,13 @@
       mainMenu.classList.add('hidden'); endMsg.classList.add('hidden');
       applyPlayerColor();
       playerEl.style.width = PLAYER_W + 'px';
-      score = 0; lives = 3;
+      score = 0; lives = StarCatcherContent.startingLives;
       scoreEl.textContent = score; livesEl.textContent = lives;
       document.getElementById('active-powerups').innerHTML = '';
       starsFallen = 0; nextPowerupAt = 25 + (Math.floor(Math.random() * 9) - 4);
       effects = { rushUntil: 0, calmUntil: 0, shieldHitsLeft: 0, wideUntil: 0 };
+      gameTime = 0;
+      tutorialStep = starCoach.needed ? 0 : -1;
       currentPlayerW = PLAYER_W;
       playerX = (GAME_W - currentPlayerW) / 2;
       playerEl.style.left = playerX + 'px';
@@ -1188,6 +1210,10 @@
       document.getElementById('pause-overlay').classList.remove('visible');
       lastTime = performance.now();
       updateBestBar(); scheduleSpawn();
+      if (tutorialStep === 0) {
+        starCoach.show('Move the paddle and catch the star on the right. Use A/D, ←/→, or drag.');
+        spawnItem(false, GAME_W - ITEM_SIZE - 16, STAR_POINTS);
+      }
       requestAnimationFrame(gameLoop);
       if (isMobile) document.getElementById('mobile-slider-container').style.display = 'flex';
     }
@@ -1209,6 +1235,7 @@
       if (!gameRunning || isPaused) return;
       const rawDt = lastTime ? timestamp - lastTime : 16.67;
       lastTime = timestamp;
+      gameTime += rawDt;
       const dt = Math.min(rawDt / 16.67, 2.0);
       updatePowerupUI(); particles.update();
 
@@ -1240,7 +1267,16 @@
             triggerPowerup(obj.el.dataset.power);
           } else {
             sfx.play('pickup'); particles.spawn(x, y, '#ffd77a', 8); obj.el.remove(); falling.splice(i, 1);
-            score += STAR_POINTS; scoreEl.textContent = score; updateBestBar();
+            const collectedValue = Number(obj.el.dataset.value || STAR_POINTS);
+            score += collectedValue; scoreEl.textContent = score; updateBestBar();
+            if (tutorialStep === 0) {
+              tutorialStep = 1;
+              starCoach.show('Great. Now catch the gold star on the left for a bigger reward.');
+              spawnItem(false, 16, STAR_POINTS * 5);
+            } else if (tutorialStep === 1 && collectedValue >= STAR_POINTS * 5) {
+              tutorialStep = -1;
+              starCoach.complete('Tutorial complete — bombs are active now, so keep catching stars and avoid them!');
+            }
           }
         }
       }
@@ -1286,8 +1322,35 @@
     slider.addEventListener('touchmove', e => e.stopPropagation(), {passive: true});
     slider.addEventListener('input', e => { if (gameRunning) playerX = (e.target.value / 100) * (GAME_W - currentPlayerW); });
 
+    let activePointerId = null;
+    function movePaddleTo(clientX) {
+      const rect = gameEl.getBoundingClientRect();
+      const localX = (clientX - rect.left) * (GAME_W / rect.width);
+      playerX = Math.max(0, Math.min(GAME_W - currentPlayerW, localX - currentPlayerW / 2));
+    }
+    gameEl.addEventListener('pointerdown', e => {
+      if (!gameRunning || e.target.closest('button, input')) return;
+      activePointerId = e.pointerId;
+      gameEl.setPointerCapture?.(e.pointerId);
+      movePaddleTo(e.clientX);
+    });
+    gameEl.addEventListener('pointermove', e => {
+      if (e.pointerId === activePointerId) movePaddleTo(e.clientX);
+    });
+    gameEl.addEventListener('pointerup', e => { if (e.pointerId === activePointerId) activePointerId = null; });
+    window.addEventListener('resize', applyMobileMode);
+
     buildColorGrid();
     applyMobileMode();
+    const starCoach = ArcadeCommon.createCoach('star-catcher');
+    ArcadeCommon.install({
+      id: 'star-catcher', title: 'Star Catcher',
+      goal: 'Catch stars, avoid bombs, and use powerups to keep your run alive.',
+      controls: 'Use A/D or the arrow keys. On touch screens, drag the paddle or use the slider. Press Escape to pause.',
+      startButton: '#menu-play-btn', restart: startGame,
+      pause: () => { if (gameRunning && !isPaused) togglePause(); },
+      clearInputs: () => { keys = {}; }
+    });
   </script>
 </body>
 </html>

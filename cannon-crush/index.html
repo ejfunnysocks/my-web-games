@@ -858,6 +858,7 @@
     }
     </style>
     </style>
+    <link rel="stylesheet" href="../shared/arcade-common.css">
 </head>
 <body>
   <a href="../" class="back-btn">← Arcade Hub</a>
@@ -969,6 +970,8 @@
     </div>
   </div>
 
+  <script src="content.js"></script>
+  <script src="../shared/arcade-common.js"></script>
   <script>
     const container = document.getElementById('game-container');
     const cannonEl = document.getElementById('cannon');
@@ -1015,9 +1018,9 @@
       boss: null,
       
       // Cannon stats
-      damage: 1,
-      fireRate: 400, // ms between shots
-      critChance: 2, // percentage
+      damage: CannonCrushContent.baseDamage,
+      fireRate: CannonCrushContent.baseFireRate,
+      critChance: CannonCrushContent.baseCritChance,
       lastShotTime: 0,
       
       // Upgrades
@@ -1058,6 +1061,8 @@
       // Speed
       gameSpeed: 1,
       lastSpawnTime: 0,
+      runTime: 0,
+      tutorialStep: -1,
       
       // Input
       keys: {},
@@ -1293,6 +1298,7 @@
       
       // Mouse dragging & shooting
       container.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button, input, a')) return;
         sfx.init();
         state.isShooting = true;
         if (state.godMode && !e.target.closest('button')) {
@@ -1305,7 +1311,7 @@
         state.isDragging = true;
         
         const rect = container.getBoundingClientRect();
-        const pointerX = e.clientX - rect.left;
+        const pointerX = (e.clientX - rect.left) * (GAME_W / rect.width);
         
         // Let the cannon snap to where we clicked, or calculate offset
         if(pointerX >= state.cannonX && pointerX <= state.cannonX + CANNON_W) {
@@ -1318,7 +1324,7 @@
       document.addEventListener('mousemove', (e) => {
         if (!state.isDragging) return;
         const rect = container.getBoundingClientRect();
-        const pointerX = e.clientX - rect.left;
+        const pointerX = (e.clientX - rect.left) * (GAME_W / rect.width);
         state.cannonX = pointerX - state.dragOffsetX;
       });
       document.addEventListener('mouseup', () => {
@@ -1328,6 +1334,7 @@
       
       // Touch dragging & shooting
       container.addEventListener('touchstart', (e) => { 
+        if (e.target.closest('button, input, a')) return;
         sfx.init();
         e.preventDefault(); 
         state.isShooting = true; 
@@ -1340,7 +1347,7 @@
         
         const rect = container.getBoundingClientRect();
         const touch = e.touches[0];
-        const pointerX = touch.clientX - rect.left;
+        const pointerX = (touch.clientX - rect.left) * (GAME_W / rect.width);
         
         if(pointerX >= state.cannonX && pointerX <= state.cannonX + CANNON_W) {
              state.dragOffsetX = pointerX - state.cannonX;
@@ -1354,7 +1361,7 @@
         if (!state.isDragging) return;
         const rect = container.getBoundingClientRect();
         const touch = e.touches[0];
-        const pointerX = touch.clientX - rect.left;
+        const pointerX = (touch.clientX - rect.left) * (GAME_W / rect.width);
         state.cannonX = pointerX - state.dragOffsetX;
       }, {passive: false});
       
@@ -1750,6 +1757,7 @@
     }
     
     function startLevel() {
+      state.tutorialStep = cannonCoach.needed ? 0 : -1;
       // Clear entities
       [...state.bullets, ...state.balls, ...state.drops, ...document.querySelectorAll('.hit-text')].forEach(e => {
         if(e.el) e.el.remove();
@@ -1759,10 +1767,10 @@
       // Reset level state
       state.ballsSpawnedThisLevel = 0;
       state.ballsDestroyedThisLevel = 0;
-      state.isBossLevel = state.level % 5 === 0;
+      state.isBossLevel = state.level % CannonCrushContent.bossEveryLevel === 0;
       const finalBossLevel = 25 + (state.rebirths * 25);
       state.isFinalBoss = state.level === finalBossLevel;
-      state.totalBallsForLevel = state.isBossLevel ? 1 : (10 + Math.floor(state.level * 3) + Math.floor(state.level / 5) * 2);
+      state.totalBallsForLevel = state.isBossLevel ? 1 : (CannonCrushContent.firstLevelEnemies + Math.floor(state.level * 3) + Math.floor(state.level / CannonCrushContent.bossEveryLevel) * 2);
       // Scale max enemies on screen: 3 at level 1, +1 every 2 levels, capped at 10
       state.maxBallsOnScreen = Math.min(10, 3 + Math.floor((state.level - 1) / 2));
       
@@ -1775,6 +1783,9 @@
       state.drops = [];
       state.lastShotTime = 0;
       state.lastSpawnTime = 0;
+      state.runTime = 0;
+      state.isShooting = false;
+      state.keys = {};
       state.freezeEndTime = 0;
       
       if (state.boss && state.boss.el) {
@@ -1818,6 +1829,7 @@
       updateProgressBar();
       
       requestAnimationFrame(gameLoop);
+      if (state.tutorialStep === 0) cannonCoach.show('Move the cannon a little using A/D, ←/→, or by dragging.');
     }
     
     function resetProgress() {
@@ -1999,6 +2011,7 @@
     // Spawners
     function spawnLevelBall() {
       if (!state.running) return;
+      if (state.tutorialStep >= 0) return;
       if (state.isBossLevel) return; // Boss handles its own minions
       if (state.ballsDestroyedThisLevel >= state.totalBallsForLevel) return; // Stop spawning when progress is full
       if (state.ballsSpawnedThisLevel >= state.totalBallsForLevel) return;
@@ -2016,20 +2029,25 @@
       // Base HP scales with level
       const baseHp = 5 + ((state.level - 1) * 5);
       
-      // 5% chance for a freeze ball
-      const type = Math.random() < 0.05 ? 'freeze' : 'normal';
+      const roll = Math.random();
+      let type = 'normal';
+      let adjustedRadius = radius;
+      let adjustedHp = baseHp;
+      let adjustedVx = vx;
+      if (roll < 0.05) type = 'freeze';
+      else if (state.level >= 4 && roll < 0.16) { type = 'armored'; adjustedHp = Math.ceil(baseHp * 1.8); }
+      else if (state.level >= 6 && roll < 0.29) { type = 'swift'; adjustedRadius = Math.round(radius * 0.68); adjustedHp = Math.max(1, Math.floor(baseHp * 0.65)); adjustedVx *= 1.6; }
       
-      createBall(x, y, vx, vy, radius, baseHp, type);
+      createBall(x, y, adjustedVx, vy, adjustedRadius, adjustedHp, type);
     }
     
     function createBall(x, y, vx, vy, radius, hp, type = 'normal') {
       const el = document.createElement('div');
       el.className = 'ball' + (type === 'freeze' ? ' freeze' : '');
-      
-      if (type !== 'freeze') {
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        el.style.background = `radial-gradient(circle at 30% 30%, ${color}, #000)`;
-      }
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      if (type === 'armored') el.style.background = 'radial-gradient(circle at 30% 30%, #e2e8f0, #475569 52%, #0f172a)';
+      else if (type === 'swift') el.style.background = 'radial-gradient(circle at 30% 30%, #fef08a, #f97316 48%, #7c2d12)';
+      else if (type !== 'freeze') el.style.background = `radial-gradient(circle at 30% 30%, ${color}, #000)`;
       
       el.style.width = (radius * 2) + 'px';
       el.style.height = (radius * 2) + 'px';
@@ -2038,7 +2056,7 @@
       container.appendChild(el);
       
       state.balls.push({
-        x, y, vx, vy, radius, hp, maxHp: hp, el, type
+        x, y, vx, vy, radius, hp, maxHp: hp, el, type, color
       });
     }
     
@@ -2123,6 +2141,7 @@
     
     function update(timestamp, dt = 1) {
       if (!state.running || state.paused) return;
+      state.runTime += dt * 16.67;
       // Player movement
       const speed = 12 * dt;
       if (state.keys['ArrowLeft'] || state.keys['KeyA']) state.cannonX -= speed;
@@ -2130,10 +2149,15 @@
       
       // Clamp cannon
       state.cannonX = Math.max(0, Math.min(GAME_W - CANNON_W, state.cannonX));
+      if (state.tutorialStep === 0 && Math.abs(state.cannonX - 270) > 25) {
+        state.tutorialStep = 1;
+        cannonCoach.show('Nice. Hold W, ↑, Space, or touch the game to fire and destroy the training orb.');
+        createBall(GAME_W / 2 - 24, 230, 0, 0, 24, Math.max(3, state.damage * 3), 'tutorial');
+      }
       
       // Shooting - Strict Keyboard Controls (WASD / Arrows / Space)
       const isKeyboardShooting = state.keys['ArrowUp'] || state.keys['KeyW'] || state.keys['Space'];
-      if (isKeyboardShooting && timestamp - state.lastShotTime > state.fireRate) {
+      if ((isKeyboardShooting || state.isShooting) && timestamp - state.lastShotTime > state.fireRate) {
         state.lastShotTime = timestamp;
         shoot();
       }
@@ -2148,7 +2172,7 @@
       // Update bullets
       for (let i = state.bullets.length - 1; i >= 0; i--) {
         const b = state.bullets[i];
-        b.y -= 10 * dt;
+        b.y += b.vy * dt;
         
         // Remove offscreen
         if (b.y < -20) {
@@ -2286,7 +2310,7 @@
       }
       
       // Update drops
-      const now = Date.now();
+      const now = state.runTime;
       for (let i = state.drops.length - 1; i >= 0; i--) {
         const d = state.drops[i];
         d.vy += GRAVITY * 4 * dt;
@@ -2305,7 +2329,7 @@
         const b = state.balls[i];
         
         // Physics only run if not frozen
-        if (Date.now() >= state.freezeEndTime) {
+        if (state.runTime >= state.freezeEndTime) {
             b.vy += GRAVITY * dt;
             b.x += b.vx * dt;
             b.y += b.vy * dt;
@@ -2472,10 +2496,14 @@
       sfx.play('explosion');
       particles.spawn(b.x + b.radius, b.y + b.radius, b.color, 15);
       spawnDrop(b.x + b.radius, b.y + b.radius, b.maxHp);
+      if (b.type === 'tutorial' && state.tutorialStep === 1) {
+        state.tutorialStep = -1;
+        cannonCoach.complete('Tutorial complete — regular enemies are now entering the arena.');
+      }
       
       // Activate powerups
       if (b.type === 'freeze') {
-         state.freezeEndTime = Date.now() + 5000;
+         state.freezeEndTime = state.runTime + 5000;
          showHitText(GAME_W / 2, GAME_H / 2, 'FREEZE!', true);
       }
       
@@ -2643,6 +2671,15 @@
     document.querySelector('.info-content').addEventListener('click', (e) => e.stopPropagation());
     document.getElementById('info-overlay').addEventListener('click', () => {
       document.getElementById('info-overlay').classList.remove('visible');
+    });
+    const cannonCoach = ArcadeCommon.createCoach('cannon-crush');
+    ArcadeCommon.install({
+      id: 'cannon-crush', title: 'Cannon Crush',
+      goal: 'Move the cannon, destroy incoming balls, and clear each level before they reach you.',
+      controls: 'Use A/D or the arrow keys to move. Hold W, Up, or Space to fire. Drag and fire on touch screens. Press Escape to pause.',
+      startButton: '#play-btn', restart: startLevel,
+      pause: () => { if (state.running && !state.paused) togglePause(); },
+      clearInputs: () => { state.keys = {}; state.isShooting = false; }
     });
   </script>
 </body>

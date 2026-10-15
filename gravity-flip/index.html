@@ -275,6 +275,7 @@
             box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
         }
     </style>
+    <link rel="stylesheet" href="../shared/arcade-common.css">
 </head>
 <body>
     <div id="game-container">
@@ -318,6 +319,8 @@
         </div>
     </div>
 
+    <script src="content.js"></script>
+    <script src="../shared/arcade-common.js"></script>
     <script>
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
@@ -337,10 +340,7 @@
         // Constants
         const GROUND_H = 40;
         const PLAYER_SIZE = 30;
-        const MIN_GAP = 600; // Even wider gap for accessibility
-        const MAX_SPEED = 18; // Faster peak speed for intensity
-        const GRAVITY_FORCE = 0.6;
-        const SPEED_INIT = 4;
+        const { minGap: MIN_GAP, maxSpeed: MAX_SPEED, gravity: GRAVITY_FORCE, initialSpeed: SPEED_INIT, speedGrowth: SPEED_GROWTH, themes: THEMES } = NinjaDashContent;
 
         // State
         const state = {
@@ -361,8 +361,10 @@
             obstacles: [],
             particles: [],
             trail: [], // Teleport trail
+            theme: THEMES[0],
             lastTime: 0,
-            obstacleTimer: 0
+            obstacleTimer: 0,
+            tutorialStep: -1
         };
 
         // Utility
@@ -434,6 +436,8 @@
             state.obstacles = [];
             state.particles = [];
             state.trail = [];
+            state.theme = THEMES[Math.floor(Math.random() * THEMES.length)];
+            state.obstacleTimer = state.tutorialStep >= 0 ? Number.POSITIVE_INFINITY : 0;
             updateBestBar(); // Initialize best bar display
         }
 
@@ -486,14 +490,21 @@
                 if (distSq < (state.player.radius + 15)**2) {
                     endGame();
                 }
-                if (obs.x < -100) state.obstacles.splice(idx, 1);
+                if (obs.x < -100) {
+                    if (state.tutorialStep === 1) {
+                        state.tutorialStep = -1;
+                        state.obstacleTimer = 0;
+                        ninjaCoach.complete('Tutorial complete — survive as long as you can!');
+                    }
+                    state.obstacles.splice(idx, 1);
+                }
             });
 
             // Obstacle Spawning (Fair & Scaling)
             state.obstacleTimer -= rawDt;
             if (state.obstacleTimer <= 0) {
                 // Progression
-                state.speed = Math.min(MAX_SPEED, 6 + (state.score * 0.03)); // Slower speed scaling
+                state.speed = Math.min(MAX_SPEED, SPEED_INIT + (state.score * SPEED_GROWTH));
                 
                 // Enforce MIN_GAP between obstacles
                 const lastObs = state.obstacles[state.obstacles.length - 1];
@@ -534,20 +545,25 @@
 
         function draw() {
             ctx.clearRect(0, 0, width, height);
+            const sky = ctx.createLinearGradient(0, 0, 0, height);
+            sky.addColorStop(0, state.theme.sky[0]);
+            sky.addColorStop(1, state.theme.sky[1]);
+            ctx.fillStyle = sky;
+            ctx.fillRect(0, 0, width, height);
 
             // Draw Platforms
-            ctx.fillStyle = '#334155';
+            ctx.fillStyle = state.theme.floor;
             state.platforms.forEach(p => {
                 ctx.fillRect(p.x, p.y, p.w, p.h);
                 // Glowing Edge
                 ctx.fillStyle = varColor('--primary');
                 ctx.fillRect(p.x, p.type === 'bottom' ? p.y : p.y + p.h - 4, p.w, 4);
-                ctx.fillStyle = '#334155';
+                ctx.fillStyle = state.theme.floor;
             });
 
             // Draw Obstacles (Spikes)
             state.obstacles.forEach(obs => {
-                ctx.fillStyle = varColor('--accent');
+                ctx.fillStyle = state.theme.spike;
                 ctx.beginPath();
                 if (obs.isTop) {
                     ctx.moveTo(obs.x, obs.y);
@@ -709,6 +725,11 @@
             }
 
             sfx.play('flip');
+            if (state.tutorialStep === 0) {
+                state.tutorialStep = 1;
+                ninjaCoach.show('Nice flip. A spike is coming from the ceiling — flip back to the floor to dodge it.');
+                state.obstacles.push({ x: width + 100, y: GROUND_H, w: 30, h: 40, isTop: true, id: Date.now() });
+            }
             // Tiny screen shake
             document.getElementById('game-container').animate([
                 { transform: 'translate(1px, 1px)' },
@@ -723,12 +744,14 @@
 
         // --- State Management ---
         function startGame() {
+            state.tutorialStep = ninjaCoach.needed ? 0 : -1;
             state.running = true;
             state.paused = false;
             document.getElementById('pause-overlay').classList.remove('visible');
             menuOverlay.classList.add('hidden');
             gameOverOverlay.classList.add('hidden');
             initGame();
+            if (state.tutorialStep === 0) ninjaCoach.show('Tap, click, or press Space to flip from the floor to the ceiling.');
             state.lastTime = performance.now();
             requestAnimationFrame(gameLoop);
         }
@@ -739,7 +762,7 @@
                 state.best = Math.floor(state.score);
                 localStorage.setItem('ninja_best', state.best);
             }
-            finalScoreEl.textContent = `Distance: ${Math.floor(state.score)}m`;
+            finalScoreEl.textContent = `Distance: ${Math.floor(state.score)}m · Best: ${state.best}m`;
             gameOverOverlay.classList.remove('hidden');
         }
 
@@ -762,6 +785,14 @@
             if (e.code === 'Escape') togglePause();
         });
         document.getElementById('resume-btn').addEventListener('click', togglePause);
+        const ninjaCoach = ArcadeCommon.createCoach('ninja-dash');
+        ArcadeCommon.install({
+            id: 'ninja-dash', title: 'Ninja Dash',
+            goal: 'Stay alive by switching between the floor and ceiling before a spike reaches you.',
+            controls: 'Tap or click the game, or press Space, to flip gravity. Press Escape to pause.',
+            startButton: '#start-btn', restart: startGame,
+            pause: () => { if (state.running && !state.paused) togglePause(); }
+        });
     </script>
 </body>
 </html>

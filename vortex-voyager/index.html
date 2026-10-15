@@ -307,6 +307,7 @@
             box-shadow: 0 0 40px rgba(99, 102, 241, 0.6);
         }
     </style>
+    <link rel="stylesheet" href="../shared/arcade-common.css">
 </head>
 <body>
     <div id="game-container">
@@ -351,6 +352,8 @@
         </div>
     </div>
 
+    <script src="content.js"></script>
+    <script src="../shared/arcade-common.js"></script>
     <script>
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
@@ -375,9 +378,7 @@
         resize();
 
         // Constants
-        const TUNNEL_LAYERS = 25;
-        const LAYER_SPACING = 0.4;
-        const ROTATION_SENSITIVITY = 0.008;
+        const { tunnelLayers: TUNNEL_LAYERS, layerSpacing: LAYER_SPACING, rotationSensitivity: ROTATION_SENSITIVITY, baseSpeed: BASE_SPEED, maxSpeed: MAX_SPEED, bonusRingChance: BONUS_RING_CHANCE, themes: THEMES } = VortexVoyagerContent;
 
         // State
         const state = {
@@ -385,14 +386,16 @@
             paused: false,
             score: 0,
             distance: 0,
-            speed: 0.05,
-            targetSpeed: 0.05,
+            speed: BASE_SPEED,
+            targetSpeed: BASE_SPEED,
             rotation: 0,
             targetRotation: 0,
             playerAngle: Math.PI / 2,
             layers: [], // Tunnel rings/objects
             lastTime: 0,
             particles: [],
+            theme: THEMES[0],
+            tutorialStep: -1,
             best: parseInt(localStorage.getItem('vortex_best')) || 0
         };
 
@@ -495,8 +498,12 @@
         // --- Tunnel Logic ---
         function createLayer(z) {
             const obstacles = [];
+            if (state.tutorialStep >= 0) return { z, obstacles };
             const isObstacleLayer = Math.random() < 0.4 && z > 2;
-            if (isObstacleLayer) {
+            const isBonusLayer = Math.random() < BONUS_RING_CHANCE && z > 4;
+            if (isBonusLayer) {
+                obstacles.push({ type: 'ring', angle: random(0, Math.PI * 2), width: 0.2 });
+            } else if (isObstacleLayer) {
                 const count = Math.floor(random(1, 3));
                 for(let i=0; i<count; i++) {
                     obstacles.push({
@@ -528,7 +535,7 @@
             state.rotation += (state.targetRotation - state.rotation) * 0.1 * dt;
             
             // Speed progression
-            state.targetSpeed = 0.05 + (state.distance * 0.0001);
+            state.targetSpeed = Math.min(MAX_SPEED, BASE_SPEED + (state.distance * 0.0001));
             state.speed += (state.targetSpeed - state.speed) * 0.01 * dt;
             state.distance += state.speed * dt;
 
@@ -566,6 +573,10 @@
                     state.layers.splice(i, 1);
                     state.layers.push(createLayer(TUNNEL_LAYERS * LAYER_SPACING));
                     state.score++;
+                    if (state.tutorialStep === 1 && state.score >= 3) {
+                        state.tutorialStep = -1;
+                        vortexCoach.complete('Tutorial complete — red walls are live now. Keep the gap under your ship!');
+                    }
                 }
             }
 
@@ -598,6 +609,11 @@
 
         function draw() {
             ctx.clearRect(0, 0, width, height);
+            const backdrop = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height));
+            backdrop.addColorStop(0, state.theme[0]);
+            backdrop.addColorStop(1, state.theme[1]);
+            ctx.fillStyle = backdrop;
+            ctx.fillRect(0, 0, width, height);
             
             const centerX = width / 2;
             const centerY = height / 2;
@@ -649,6 +665,15 @@
                         // Add intense glow
                         ctx.shadowBlur = 30 * alpha;
                         ctx.shadowColor = '#f43f5e';
+                        ctx.stroke();
+
+                    } else if (obs.type === 'ring') {
+                        ctx.strokeStyle = `rgba(250, 204, 21, ${alpha})`;
+                        ctx.lineWidth = Math.max(2, 10 * scale);
+                        ctx.shadowBlur = 24 * alpha;
+                        ctx.shadowColor = '#facc15';
+                        ctx.beginPath();
+                        ctx.arc(radius, 0, Math.max(8, 16 * scale), 0, Math.PI * 2);
                         ctx.stroke();
                     }
                     ctx.restore();
@@ -708,6 +733,10 @@
             state.targetRotation += dx * ROTATION_SENSITIVITY;
             lastX = x;
             if (Math.abs(dx) > 5) sfx.play('swish');
+            if (state.tutorialStep === 0 && Math.abs(dx) > 5) {
+                state.tutorialStep = 1;
+                vortexCoach.show('Good. Keep rotating while you travel through three safe tunnel rings.');
+            }
         }
         function onEnd() { isDragging = false; }
 
@@ -721,6 +750,7 @@
 
         // --- State Management ---
         function startDescent() {
+            state.tutorialStep = vortexCoach.needed ? 0 : -1;
             state.running = true;
             state.paused = false;
             document.getElementById('pause-overlay').classList.remove('visible');
@@ -728,10 +758,14 @@
             gameOverOverlay.classList.add('hidden');
             state.score = 0;
             state.distance = 0;
-            state.speed = 0.05;
+            state.speed = BASE_SPEED;
+            state.targetSpeed = BASE_SPEED;
             state.rotation = 0;
             state.targetRotation = 0;
+            state.keys = {};
+            state.theme = THEMES[Math.floor(Math.random() * THEMES.length)];
             initTunnel();
+            if (state.tutorialStep === 0) vortexCoach.show('Drag or swipe sideways, or use ← and →, to rotate the tunnel.');
             updateBestBar();
             state.lastTime = performance.now();
             requestAnimationFrame(gameLoop);
@@ -744,7 +778,7 @@
                 state.best = state.score;
                 localStorage.setItem('vortex_best', state.best);
             }
-            finalScoreEl.textContent = `Score: ${state.score}`;
+            finalScoreEl.textContent = `Score: ${state.score} · Best: ${state.best}`;
             gameOverOverlay.classList.remove('hidden');
         }
 
@@ -765,6 +799,15 @@
             if (e.code === 'Escape') togglePause();
         });
         document.getElementById('resume-btn').addEventListener('click', togglePause);
+        const vortexCoach = ArcadeCommon.createCoach('vortex-voyager');
+        ArcadeCommon.install({
+            id: 'vortex-voyager', title: 'Vortex Voyager',
+            goal: 'Rotate the tunnel so the ship reaches each opening without touching red walls.',
+            controls: 'Drag left or right, swipe, or use the arrow keys. Press Escape to pause.',
+            startButton: '#start-btn', restart: startDescent,
+            pause: () => { if (state.running && !state.paused) togglePause(); },
+            clearInputs: () => { state.keys = {}; }
+        });
     </script>
 </body>
 </html>
